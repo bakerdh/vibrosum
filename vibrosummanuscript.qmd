@@ -1,5 +1,10 @@
 ---
 title: "Signal combination in vibration perception"
+author:
+  - name: Shasha Wei$^{1,2}$
+  - name: Alex R. Wade$^{1}$
+  - name: Catherine E.J. Preston$^{1}$
+  - name: \& Daniel H. Baker$^{1}$
 format: pdf
 bibliography: references.bib
 csl: pnas.csl
@@ -8,10 +13,13 @@ execute:
   output: false
 ---
 
+$^1$Department of Psychology, University of York, UK\
+$^2$Corresponding author, email: mfv507\@york.ac.uk
+
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 0
+doanalysis <- 1
 fitmodels <- 0
 plotfigures <- 0
 
@@ -74,9 +82,10 @@ if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffil
 }
 
 if (plotfigures==1){
-  osfproject <- osf_retrieve_node('m79d2')
+osfproject <- osf_retrieve_node('m79d2')
 osffiles <- osf_ls_files(osfproject,n_max=300)
-    
+
+if (!file.exists('local/processedEEGdata.npz')){osf_download(osffiles[which(osffiles$name=='processedEEGdata.npz'),],'local/',progress=TRUE)}
 if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$name=='allthresh.npz'),],'local/',progress=TRUE)}
 if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
 if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
@@ -255,7 +264,7 @@ if r.plotfigures:
 ```{python analyseEEG}
 #| include: false
 
-if r.doanalysis:
+if !r.doanalysis:
     raw_path = "local/rawEEGdata/"   #load data, you can download raw data from 
     nsubjs = 31
     allsubjsF1 = np.zeros((nsubjs,61,6,5), dtype=complex)
