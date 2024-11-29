@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+.DS_Store
+local/
+env/
+.TinyTex/
+.cache/
+.config/
+.virtualenvs/
+.wget-hsts
+.local/
+bin/

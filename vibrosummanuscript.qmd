@@ -1,0 +1,1239 @@
+---
+title: "Signal combination in vibration perception"
+format: pdf
+bibliography: references.bib
+csl: pnas.csl
+execute:
+  echo: false
+  output: false
+---
+
+```{r initialiseenvironment}
+#| include: false
+
+doanalysis <- 0
+fitmodels <- 0
+plotfigures <- 0
+
+# install R packages
+packagelist <- c('knitr','reticulate','osfr','tinytex')
+
+missingpackages <- packagelist[!packagelist %in% installed.packages()[,1]]
+if (length(missingpackages)>0){install.packages(missingpackages)}
+toinstall <- packagelist[which(!packagelist %in% (.packages()))]
+invisible(lapply(toinstall,library,character.only=TRUE))
+
+if (!is_tinytex()){install_tinytex(force=FALSE)}
+
+```
+
+```{python setup}
+
+# import packages etc.
+
+import os
+import mne
+import numpy as np
+import pandas as pd
+import psignifit as ps
+from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
+from mne import EpochsArray
+from mne import viz
+from mne.channels import make_standard_montage
+from scipy.fft import fft, fftfreq
+from scipy.stats import norm
+from scipy.optimize import minimize
+from matplotlib.lines import Line2D
+from matplotlib import cm, colors, colorbar
+from statsmodels.stats.anova import AnovaRM
+import pingouin as pg
+from pingouin import pairwise_ttests
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+```
+
+```{r checkfordata}
+
+# check if raw data are available and download if required
+
+if (!dir.exists('local')){dir.create('local/')}
+
+if (doanalysis==1){
+osfproject <- osf_retrieve_node('m79d2')
+osffiles <- osf_ls_files(osfproject,n_max=300)
+if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$name=='8subjects.csv'),],'local/',progress=TRUE)}
+
+if (!dir.exists('local')){dir.create('local/rawEEGdata/')}
+osfproject <- osf_retrieve_node('z2fcm')
+osffiles <- osf_ls_files(osfproject,n_max=300)
+for (s in 1:31){
+if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE)}
+if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE)}
+}
+}
+
+if (plotfigures==1){
+  osfproject <- osf_retrieve_node('m79d2')
+osffiles <- osf_ls_files(osfproject,n_max=300)
+    
+if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$name=='allthresh.npz'),],'local/',progress=TRUE)}
+if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
+if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
+
+}
+
+```
+
+```{python analysedippers}
+#| include: false
+
+if r.doanalysis:
+    row = pd.read_csv('local/8subjects.csv')
+    ex1data = row[['Subject','Condition', 'PedestalContrast','TargetContrast','IsCorrect']].values
+    df = pd.DataFrame(ex1data, columns=['Subject','Condition', 'PedestalContrast','TargetContrast', 'IsCorrect'])
+    df['Condition'] = (df['Condition'] + 1) // 2
+    
+    sublist = df['Subject'].unique()
+    
+    options = {'sigmoidName': 'norm', 'expType': '2AFC'}
+    
+    #%% generate tofit data and fit psychometric functions
+    allthresh = np.zeros((len(sublist), 4, 8))
+    allslope = np.zeros((len(sublist), 4, 8))
+    
+    # Loop over each subject
+    for i, subject in enumerate(sublist):
+        
+        subdata = df[df['Subject'] == subject]
+        
+        # Loop over conditions (1 to 4)
+        for cond in range(1, 5):
+            
+            conddata = subdata[subdata['Condition'] == cond]
+            pedlevs = np.sort(conddata['PedestalContrast'].unique())
+            
+            # Loop over pedestal levels (1 to 8)
+            for pedlevel in range(8):
+                if pedlevel < len(pedlevs):  
+                    
+                    blockdata = conddata[conddata['PedestalContrast'] == pedlevs[pedlevel]]
+                    
+                    # Proceed only if there's data in blockdata
+                    if not blockdata.empty:
+                       
+                        targetcontrasts = np.sort(blockdata['TargetContrast'].unique())
+                        targetcontrasts = pd.to_numeric(targetcontrasts, errors='coerce')
+                        #targetcontrasts = targetcontrasts[targetcontrasts > 0] 
+                        
+                        ntrials = []
+                        ncorrect = []
+                        
+                        # Loop over each TargetContrast
+                        for target in targetcontrasts:
+                           
+                            temp = blockdata[blockdata['TargetContrast'] == target]
+                            
+                            # Count ncorr and ntotal
+                            ntrials.append(len(temp))
+                            ncorrect.append(temp['IsCorrect'].sum())
+                       
+                        level = np.round(20 * np.log10(targetcontrasts))
+                        tofit = np.vstack((level, ncorrect, ntrials)).T
+                        
+                        result_fit = ps.psignifit(tofit, options)
+                        allthresh[i, cond - 1, pedlevel] = result_fit['Fit'][0] 
+                        allslope[i, cond - 1, pedlevel] = 10.3 / (result_fit['Fit'][1] / (norm.ppf(1 - 0.05) - norm.ppf(0.05)))
+    
+    #print("Thresholds:", allthresh)
+    #print("Slopes:", allslope)
+    
+    allthresh[:, 2, 1:8] = allthresh[:, 2, 0:7]
+    allthresh[:, 3, 1:8] = allthresh[:, 3, 0:7]
+    allslope[:, 2, 1:8] = allslope[:, 2, 0:7]
+    allslope[:, 3, 1:8] = allslope[:, 3, 0:7]
+    
+    allthresh[:, 2, 0] = allthresh[:, 0,0]
+    allthresh[:, 3, 0] = allthresh[:, 0, 0]
+    allslope[:, 2, 0] = allslope[:, 0,0]
+    allslope[:, 3, 0] = allslope[:, 0, 0]
+    
+    np.savez('local/allthresh.npz', allthresh=allthresh)
+    np.savez('local/allslope.npz', allslope=allslope)
+
+```
+
+```{python plotdippers}
+#| include: false
+
+if r.plotfigures:
+  
+    data= np.load('local/allthresh.npz')
+    allthresh= data['allthresh'] 
+    
+    meanthresh=np.mean(allthresh, axis=0) #4*8
+    SEthresh = np.std(allthresh, axis=0, ddof=1) / np.sqrt(8) 
+    
+    x = np.arange(1, 9)
+    markers=['o','s','D','^']
+    lineColor = ['b', 'r', 'orange','g']  # Line colors for the four conditions
+    labels= ['Pentadactyl', 'Dekadactyl', 'Half-Dekadactyl','Dichodactyl']
+    markeredgecolors=['black','black','black','black']
+    legend_elements = []
+    
+    #%% Plotting
+    plt.figure(figsize=(20, 10)) 
+    plt.subplot(1, 2, 1)
+    for m in range(meanthresh.shape[0]):#iterate over the columns of average_array
+        y=meanthresh[m, :]
+        y_error=SEthresh[m, :] #because SE array have the same number of columns as average_array
+        y_upper = y + y_error
+        y_lower = y - y_error
+    
+       
+        plt.plot(x, y, label=labels[m], color=lineColor[m], marker=markers[m], markersize=10, markeredgecolor=markeredgecolors[m])
+        plt.fill_between(x, y_lower, y_upper,alpha=0.15, color=lineColor[m])
+        legend_elements.append(Line2D([0], [0], color=lineColor[m], linestyle='-', label=labels[m], markersize=10, marker=markers[m],markeredgecolor=markeredgecolors[m]))
+    plt.ylim(-15,30)
+    plt.yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)       
+    plt.xticks(x,[0, 0.5, 1, 2, 4, 8, 16, 32],  fontsize = 25  )
+    plt.xlabel('Pedestal contrast (%)', fontsize=30)
+    plt.ylabel('Threshold (%)', fontsize=30)
+    plt.legend(handles=legend_elements)
+    leg = plt.legend(frameon=False, loc='lower right', fontsize=24)
+    
+    for text in leg.get_texts():
+        text.set_fontsize(18)
+    fig = plt.gcf() 
+    plt.text(0.085, 0.92, 'A', fontsize=40, fontweight='bold', va='top', ha='left', transform=fig.transFigure)
+    ax = plt.gca()
+    for spine in ax.spines.values():
+        spine.set_linewidth(2.5) 
+    ax.tick_params(axis='both', which='major', width=2)
+    
+    
+    ################ plot slope
+    data1= np.load('local/allslope.npz')
+    allslope= data1['allslope'] 
+    meanslope=np.mean(allslope, axis=0) #4*8
+    SEslope = np.std(allslope, axis=0, ddof=1) / np.sqrt(8) 
+    
+    
+    plt.subplot(1, 2, 2)
+    for m in range(meanslope.shape[0]):#iterate over the columns of average_array
+        y=meanslope[m, :]
+        y_error=SEslope[m,:] #because SE array have the same number of columns as average_array
+        y_upper = y + y_error
+        y_lower = y - y_error
+    
+       
+        plt.plot(x, y, label=labels[m], color=lineColor[m], marker=markers[m], markersize=10,markeredgecolor=markeredgecolors[m])
+        plt.fill_between(x, y_lower, y_upper,alpha=0.15, color=lineColor[m])
+        
+    
+    plt.yscale('log')
+    plt.ylim(0.4,8)
+    plt.yticks([0.5,1, 2, 4, 8], ['0.5','1', '2', '4', '8'],fontsize=25)
+    plt.minorticks_off()
+    plt.xticks(x, [0, 0.5, 1, 2, 4, 8, 16, 32], fontsize=25)
+    plt.xlabel('Pedestal contrast (%)', fontsize=30)
+    plt.ylabel('Weibull ' + r"$\mathrm{\beta}$", fontsize=30)
+    plt.subplots_adjust(wspace=0.6)
+    fig = plt.gcf() 
+    plt.text(0.58, 0.92, 'B', fontsize=40, fontweight='bold', va='top', ha='left', transform=fig.transFigure)
+    
+    ax = plt.gca()
+    for spine in ax.spines.values():
+        spine.set_linewidth(2.5)  # Adjust the thickness of the frame
+    ax.tick_params(axis='both', which='major', width=2)
+    plt.tight_layout()
+    plt.savefig('Figures/dippers.pdf')
+
+```
+
+```{python analyseEEG}
+#| include: false
+
+if r.doanalysis:
+    raw_path = "local/rawEEGdata/"   #load data, you can download raw data from 
+    nsubjs = 31
+    allsubjsF1 = np.zeros((nsubjs,61,6,5), dtype=complex)
+    allsubjsF2 = np.zeros((nsubjs,61,6,5), dtype=complex)
+    selectSpec = np.zeros((nsubjs,6, 6, 5, 10001), dtype=complex)
+    
+    # loop through each individual data, calculate the spectra data and amplitude at 6 consitons and 5 intensity levels
+    for p in range(0,nsubjs):
+        filename = raw_path + "P" + str(p+1) + '_EEG.set'
+    
+        raw = mne.io.read_raw_eeglab(filename,preload=True)
+    
+        print(raw.info)
+        raw.drop_channels(["HEOG", "VEOG", "M1", "M2","Fpz"])
+        ANT_montage = mne.channels.make_standard_montage("standard_1020")
+        raw.set_montage(ANT_montage)
+        info = raw.info
+        events, event_id = mne.events_from_annotations(raw)
+        ch_names = raw.ch_names
+    
+        legaltriggers = np.concatenate([range(11,16),range(21,26),range(31,36),range(41,46),range(51,56),range(61,66),range(71,76),range(81,86),range(91,96),range(101,106),range(111,116),range(121,126)])
+    
+        extracted_values = []
+    
+        for trigger in legaltriggers:
+            trigger_str = str(trigger)  # convert trigger to string for comparison
+            if trigger_str in event_id:
+                extracted_values.append(event_id[trigger_str])
+        #print(extracted_values)
+    
+        eventList = ['Mon/L/C1', 'Mon/L/C2', 'Mon/L/C3', 'Mon/L/C4', 'Mon/L/C5',
+                     'Mon/R/C1', 'Mon/R/C2', 'Mon/R/C3', 'Mon/R/C4', 'Mon/R/C5',
+                     'Bin/LR/C1', 'Bin/LR/C2', 'Bin/LR/C3', 'Bin/LR/C4', 'Bin/LR/C5',
+                     'Bin/RL/C1', 'Bin/RL/C2', 'Bin/RL/C3', 'Bin/RL/C4', 'Bin/RL/C5',
+                     'Dich/L/C1', 'Dich/L/C2', 'Dich/L/C3', 'Dich/L/C4', 'Dich/L/C5',
+                     'Dich/R/C1', 'Dich/R/C2', 'Dich/R/C3', 'Dich/R/C4', 'Dich/R/C5',
+                     'XMon/L/C1', 'XMon/L/C2', 'XMon/L/C3', 'XMon/L/C4', 'XMon/L/C5',
+                     'XMon/R/C1', 'XMon/R/C2', 'XMon/R/C3', 'XMon/R/C4', 'XMon/R/C5',
+                     'XBin/LR/C1', 'XBin/LR/C2', 'XBin/LR/C3', 'XBin/LR/C4', 'XBin/LR/C5',
+                     'XBin/RL/C1', 'XBin/RL/C2', 'XBin/RL/C3', 'XBin/RL/C4', 'XBin/RL/C5',
+                     'XDich/L/C1', 'XDich/L/C2', 'XDich/L/C3', 'XDich/L/C4', 'XDich/L/C5',
+                     'XDich/R/C1', 'XDich/R/C2', 'XDich/R/C3', 'XDich/R/C4', 'XDich/R/C5']
+    
+        event_dict = dict(zip(eventList, extracted_values))
+    
+        reject_criteria = None   #dict(eeg=200e-6)
+    
+        allepochs = mne.Epochs(raw, events, event_id=event_dict, tmin=1, tmax=11, baseline=(1,11), reject=reject_criteria, preload=True)
+        meanepoch = allepochs.average()
+    
+        tmin = 1.0
+        tmax = 11.0
+        fmin = 1.0
+        fmax = 50.0
+        sfreq = allepochs.info["sfreq"]
+    
+        spectrum = allepochs.compute_psd(
+            "welch",
+            n_fft=int(sfreq * (tmax - tmin)),
+            n_overlap=0,
+            n_per_seg=None,
+            tmin=tmin,
+            tmax=tmax,
+            fmin=fmin,
+            fmax=fmax,
+            window="boxcar",
+            verbose=False,
+        )
+        psds, freqs = spectrum.get_data(return_freqs=True)  # get frequency
+    
+        levellist = ["C1","C2","C3","C4","C5"]
+        condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
+    
+        allblocksF1 = np.zeros((61,len(condlist),len(levellist)), dtype=complex)
+        allblocksF2 = np.zeros((61,len(condlist),len(levellist)), dtype=complex)
+    
+        lineColor = ['b', 'r', 'g','y','m', 'k']
+        labels= ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl','Cross-Dekadactyl','Cross-Dichodactyl']
+        legend_elements = []
+        x = [12,18,24,30,36]
+    
+        spectra = np.zeros((len([4, 8, 9, 34, 35, 38]), len(condlist), len(levellist), 10001))  
+        y_26Hz = []
+        y_23Hz = []
+        selectE = [4, 8, 9, 34, 35, 38] ##########  select electrdes:F1, F2, FZ, FC1, FC2, FCZ
+        for c in range(len(condlist)):
+            for l in range(len(levellist)):
+                condstr = str(condlist[c]) + '/' + str(levellist[l])
+                temp = allepochs[condstr]
+                conditionmean = temp.average()
+                d = 1000000*conditionmean.data   # rescale to microvolts (from volts)
+                s = d.shape
+                for electrode in range(s[0]):
+                    spec = fft(d[electrode,:])/10001
+                    # Check if the electrode is in the selected electrodes list
+                    if electrode in selectE:
+                        idx = selectE.index(electrode)
+                        spectra[idx, c, l, :] = np.abs(spec)  # store all frequencies from 6 electrdes
+    
+                    allblocksF1[electrode,c,l] = np.abs(spec[260])
+                    allblocksF2[electrode,c,l] = np.abs(spec[230])
+                y_26Hz.append(allblocksF1[35,c,l]) # Electrodes 35, conditions, contrasts
+                y_23Hz.append(allblocksF2[35,c,l])
+    
+    
+        selectSpec[p, :, :, :, :] = spectra     # store spectra: participant X electrode X condition X level X frequency
+    
+        allsubjsF1[p,0:61,0:6,0:5] = allblocksF1  ##amplitudes at 26Hz: participant X electrode X condition X level
+        allsubjsF2[p,0:61,0:6,0:5] = allblocksF2   ##amplitude form 23Hz: participant X electrode X condition X level
+        
+    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1,allsubjsF2=allsubjsF2,selectSpec=selectSpec)
+
+```
+
+```{python plotEEGdata}
+#| include: false
+
+if r.plotfigures:
+    np.load('local/processedEEGdata.npz')
+    
+    # Row data for plotting spectra
+    Deka_spec = np.mean(selectSpec [:, :, 1, 4,:], axis=1)   #### average across 6 electrodes
+    Penta_spec = np.mean(selectSpec [:, :, 0, 4,:], axis=1)
+    CrossP_spec = np.mean(selectSpec [:, :, 3, 4,:], axis=1)
+    CrossDeka_spec = np.mean(selectSpec [:, :, 4, 4,:], axis=1)
+    
+    ####  Do outlier rejection,  calculate the data for plotting topmap
+    topomapF1 = np.zeros((61,len(condlist),len(levellist)))
+    topomapF2 = np.zeros((61,len(condlist),len(levellist)))
+    
+    for el in range(61):
+        for cond in range(6):
+            for lev in range(5):
+                temp = np.abs(allsubjsF1[0:31,el,cond,lev])
+                temp = temp[temp>0]
+                s = np.std(temp)
+                m = np.mean(temp)
+                temp = temp[np.abs(temp-m)<(3*s)]
+                topomapF1[el,cond,lev] = np.mean(temp)
+    
+                temp = np.abs(allsubjsF2[0:31,el,cond,lev])
+                temp = temp[temp>0]
+                s = np.std(temp)
+                m = np.mean(temp)
+                temp = temp[np.abs(temp-m)<(3*s)]
+                topomapF2[el,cond,lev] = np.mean(temp)
+    
+    ##### Remove one outlier, the rest of 30 individual data are used to calculate mean amplitude across conditions, levels
+    
+    subjsF1 = np.zeros((31, 61, len(condlist), len(levellist)))
+    subjsF2 = np.zeros((31, 61, len(condlist), len(levellist)))
+    
+    for el in range(61):
+        for cond in range(6):
+            for lev in range(5):
+                # F1 data
+                temp = np.abs(allsubjsF1[:, el, cond, lev])
+                temp = temp[temp > 0]
+                s = np.std(temp)
+                m = np.mean(temp)
+                filtered_indices = np.where(np.abs(temp - m) < (3 * s))[0]
+                for subj in range(31):
+                    if subj < len(filtered_indices):
+                        subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
+                    else:
+                        subjsF1[subj, el, cond, lev] = np.nan
+    
+                # F2 data
+                temp = np.abs(allsubjsF2[:, el, cond, lev])
+                temp = temp[temp > 0]
+                s = np.std(temp)
+                m = np.mean(temp)
+                filtered_index = np.where(np.abs(temp - m) < (3 * s))[0]
+                for subj in range(31):
+                    if subj < len(filtered_index):
+                        subjsF2[subj, el, cond, lev] = temp[filtered_index[subj]]
+                    else:
+                        subjsF2[subj, el, cond, lev] = np.nan
+    
+    ######################## filtered  F1, F2   contrast response data
+    #########################  F1
+    selectE = [4, 8, 9, 34, 35, 38]
+    EsubjsF1= subjsF1[:,selectE, :, :]
+    dataF1=np.nanmean(EsubjsF1, axis =1) #average across 6 electrodes
+    
+    mask = np.any(np.isnan(dataF1), axis=(1, 2))
+    filtered_dataF1 = dataF1[~mask]   # remove that individual data if it contains NAN, now have 30 subjs (30,6,5)
+    meanF1= np.mean(filtered_dataF1, axis=0)   # (6,5)
+    ###calculate standard error
+    n = filtered_dataF1.shape[0]
+    stdF1 = np.std(filtered_dataF1 , axis=0, ddof=1)
+    SEF1 = stdF1/ np.sqrt(n)
+    
+    ############################# F2
+    EsubjsF2= subjsF2[:,selectE, :, :]
+    dataF2=np.nanmean(EsubjsF2, axis =1) #average across 6 electrodes
+    
+    mask2 = np.any(np.isnan(dataF2), axis=(1, 2))
+    filtered_dataF2 = dataF2[~mask2]   # remove that individual data if it contains NAN, now have 30 subjs (30,6,5)
+    meanF2= np.mean(filtered_dataF2, axis=0)
+    ###calculate standard error
+    stdF2 = np.std(filtered_dataF2 , axis=0, ddof=1)
+    SEF2 = stdF2/ np.sqrt(n)
+    
+    np.save('local/allF1.npy', filtered_dataF1)
+    np.save('local/allF2.npy', filtered_dataF2)
+    
+    fPenta_spec = Penta_spec[~mask]  #### spectra with one outliner is removed,  now it has (30, 10001) dimension
+    fDeka_spec = Deka_spec[~mask]
+    fCrossP_spec = CrossP_spec[~mask]
+    fCrossDeka_spec = CrossDeka_spec[~mask]
+    
+    #######################################     plot spectrum + topomaps
+    
+    fig=plt.figure(figsize=(20,30))
+    ax1=fig.add_subplot(3,2,1)
+    ax2=fig.add_subplot(3,2,2)
+    ax3=fig.add_subplot(3,2,3)
+    ax4=fig.add_subplot(3,2,4)
+    ax5=fig.add_subplot(3,2,5)
+    ax6=fig.add_subplot(3,2,6)
+    
+    pos = ax1.get_position()              # set the position of each subplot manually
+    new_pos = [pos.x0, pos.y0+0.05, pos.width, pos.height] ###adjust position
+    ax1.set_position(new_pos)
+    
+    pos = ax2.get_position()              # set the position of each subplot manually
+    new_pos = [pos.x0 + 0.05, pos.y0+0.05, pos.width, pos.height] ###adjust position
+    ax2.set_position(new_pos)
+    
+    pos = ax3.get_position()
+    new_pos = [pos.x0, pos.y0, pos.width, pos.height]
+    ax3.set_position(new_pos)
+    
+    pos = ax4.get_position()
+    new_pos = [pos.x0 + 0.05, pos.y0, pos.width, pos.height]
+    ax4.set_position(new_pos)
+    
+    pos = ax5.get_position()
+    new_pos = [pos.x0, pos.y0-0.05, pos.width, pos.height]
+    ax5.set_position(new_pos)
+    
+    pos = ax6.get_position()
+    new_pos = [pos.x0 + 0.05, pos.y0-0.05, pos.width, pos.height]
+    ax6.set_position(new_pos)
+    
+    axes = [ax1, ax2, ax3, ax4, ax5, ax6]
+    line_weight = 2
+    for ax in axes:
+        for spine in ax.spines.values():
+            spine.set_linewidth(line_weight)
+    
+    freq_range = range(11, 471)
+    def plot_PSD_with_topomap(spectr, label, topomap_data, info, ax):
+        spectrum = spectr
+        psds_mean = spectrum.mean(axis=0)[list(freq_range)]
+        psds_std = spectrum.std(axis=0)[list(freq_range)]
+        psds_sr = psds_std / np.sqrt(nsubjs)
+        ax.plot(freqs[list(freq_range)] - 1, psds_mean, label=label)
+        ax.fill_between(freqs[list(freq_range)] - 1, psds_mean - psds_sr, psds_mean + psds_sr, color="b", alpha=0.2)
+        ax.set_title(f'{label}', fontsize=35)
+        ax.set_ylabel('Amplitude (μV)', fontsize=35)
+        ax.set_xlabel('Frequency (Hz)', fontsize=35)
+        ax.set_ylim(0, 0.5)
+        ax.tick_params(axis='both', which='major', labelsize=25)
+    
+        # Plot topomap
+        topomap_ax = ax.inset_axes([0.49, 0.46, 0.45, 0.45])
+        img, _ = mne.viz.plot_topomap(topomap_data, info, axes=topomap_ax, show=False, cmap='viridis', vlim=(0, 0.5))
+        divider = make_axes_locatable(topomap_ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        cbar = plt.colorbar(img, cax=cax, ticks=[0, 0.25, 0.5])
+        cbar.ax.tick_params(labelsize=20)
+        cbar.ax.yaxis.set_label_position('left')
+        cbar.ax.yaxis.set_ticks_position('right')
+    
+        # add the unit at the top center
+        cbar.ax.set_title('µV', fontsize=25, pad=2, loc='center')
+    
+        # Create colorbar for topomap
+    ####Add text (a), (b)......to the plot
+    ax1.text(0.03, 0.870, 'A', fontsize=50,  transform=fig.transFigure, fontweight='bold')
+    ax2.text(0.55, 0.870, 'B', fontsize=50,  transform=fig.transFigure, fontweight='bold')
+    ax3.text(0.03, 0.550, 'C', fontsize=50,  transform=fig.transFigure, fontweight='bold')
+    ax4.text(0.55, 0.550, 'D', fontsize=50,  transform=fig.transFigure, fontweight='bold')
+    ax5.text(0.03, 0.255, 'E', fontsize=50,  transform=fig.transFigure, fontweight='bold')
+    ax6.text(0.55, 0.255, 'F', fontsize=50,  transform=fig.transFigure, fontweight='bold')
+    
+    
+    plot_PSD_with_topomap(Penta_spec, 'Pentadactyl', topomapF1 [:61, 0, 4], info, ax1)
+    plot_PSD_with_topomap(Deka_spec, 'Dekadactyl', topomapF1 [:61, 1, 4], info, ax2)
+    plot_PSD_with_topomap(CrossP_spec, 'Cross-Pentadactyl', topomapF2 [:61, 3, 4], info, ax3)
+    plot_PSD_with_topomap(CrossDeka_spec, 'Cross-Dekadactyl', topomapF1 [:61, 4, 4], info, ax4)
+    
+    ################################################## Plot contrast response function at 26Hz
+    fillx = np.concatenate([x, x[::-1]])
+    x_ticks = [0, 8, 16, 32, 64]
+    
+    labels= ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl','Cross-Dekadactyl','Cross-Dichodactyl']
+    condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
+    lineColor = ['b', 'r', 'g','y','m', 'k']
+    markers = ['o', 's', '^', '<', 'p', 'd']
+    ###########################
+    legend_elements = []
+    for c, marker in zip(range(len(condlist)), markers):
+       a = meanF1[c, 0:5] + SEF1[c, 0:5]
+       b = meanF1[c, (4, 3, 2, 1, 0)] - SEF1[c, (4, 3, 2, 1, 0)]
+       filly = np.concatenate([a, b])
+       ax5.fill(fillx, filly, facecolor=lineColor[c], alpha=0.2)
+       ax5.plot(x, meanF1[c, 0:5], color=lineColor[c], marker=marker,markersize=10, label=condlist[c])
+       legend_elements.append(Line2D([0], [0], color=lineColor[c], linestyle='-', marker=marker, markersize=15, label=labels[c]))
+    
+    ax5.set_ylim(0, 0.5)
+    
+    y_ticks = np.arange(0, 0.6, 0.1)
+    formatted_y_ticks = [f'{y:.1f}' for y in y_ticks]
+    
+    ax5.set_yticks(y_ticks)
+    ax5.set_yticklabels(formatted_y_ticks, fontsize=25)
+    ax5.set_xticks(x)
+    ax5.set_xticklabels(x_ticks, fontsize=25)
+    ax5.set_ylabel('Response at 26 Hz (µV)', fontsize=35)
+    ax5.set_xlabel('Intensity level (%)', fontsize=35)
+    
+    ################################################## Plot contrast response function at 23 Hz
+    
+    for c, marker in zip(range(len(condlist)) , markers):
+       a2 = meanF2[c,0:5]+SEF2[c,0:5]
+       b2 = meanF2[c,(4,3,2,1,0)]-SEF2[c,(4,3,2,1,0)]
+       filly2 = np.concatenate([a2,b2])
+       ax6.fill(fillx,filly2,facecolor=lineColor[c],alpha=0.2)
+       ax6.plot(x, meanF2[c,0:5], color=lineColor[c], marker=marker,markersize=10, label=condlist[c])
+       #legend_elements.append(Line2D([0], [0], color=lineColor[c], linestyle='-', marker=marker,  label=labels[c]))
+    
+    leg1 = ax6.legend(
+        handles=legend_elements,
+        loc='upper left',
+        bbox_to_anchor=(0.01, 1),
+        ncol=2,  # 3 columns per row
+        fontsize=22,
+        frameon=False
+    )
+    
+    y_ticks = np.arange(0, 0.6, 0.1)
+    formatted_y_ticks = [f'{y:.1f}' for y in y_ticks]
+    
+    ax6.set_yticks(y_ticks)
+    ax6.set_yticklabels(formatted_y_ticks, fontsize=25)
+    ax6.set_ylim(0, 0.5)
+    ax6.set_xticks(x)
+    ax6.set_xticklabels(x_ticks, fontsize=25)
+    ax6.set_xlabel('Intensity level (%)', fontsize=35)
+    ax6.set_ylabel('Response at 23 Hz (µV)', fontsize=35)
+    
+    axes = [ax1, ax2, ax3, ax4, ax5, ax6]
+    #  set the spine linewidth
+    for ax in axes:
+        for spine in ax.spines.values():
+            spine.set_linewidth(2.5)
+        ax.tick_params(axis='both', which='major', width=2)
+    
+    plt.savefig('Figures/SSEPs.pdf')
+
+```
+
+```{python fitdippers}
+
+if r.fitmodels:
+    fitpath = "local/fits1/"
+    
+    if not os.path.exists(fitpath):
+        os.makedirs(fitpath)
+    
+    data = np.load('local/allthresh.npz')
+    allthresh= data['allthresh']
+    meanthresh=np.mean(allthresh, axis=0)
+    SEthresh = np.std(allthresh, axis=0, ddof=1) / np.sqrt(8)
+    
+    datatofit = meanthresh
+    ntotalsimplexfits = 100
+    pedcontrasts = np.arange(-12,31,6)
+    pedlist = pedcontrasts
+    
+    
+    def getmodelresp(p, L, R):
+    
+        Lresp = (L**p[2]) / (p[3] + L + p[5] * R)
+        Rresp = (R**p[2]) / (p[3] + R + p[5] * L)
+        bs = (Lresp**p[7] + Rresp**p[7])**(1/p[7])
+        resp = (bs**p[0]) / (p[4] + bs**p[1])
+    
+        return resp
+    
+    
+    
+    def discriminate(p, pedC, cond):
+    
+        if cond == 1:
+            baseline = getmodelresp(p, pedC, 0)
+        elif cond == 2:
+            baseline = getmodelresp(p, pedC, pedC)
+        elif cond == 3:
+            baseline = getmodelresp(p, pedC, pedC)
+        elif cond == 4:
+            baseline = getmodelresp(p, pedC, 0)
+    
+        modelresp = -10
+        contrastinc = 0
+        if baseline > -999:
+            while (modelresp - baseline) < p[6]:
+                contrastinc += 0.1
+                if cond == 1:
+                    modelresp = getmodelresp(p, pedC + contrastinc, 0)
+                elif cond == 2:
+                    modelresp = getmodelresp(p, pedC + contrastinc, pedC + contrastinc)
+                elif cond == 3:
+                    modelresp = getmodelresp(p, pedC + contrastinc, pedC)
+                elif cond == 4:
+                    modelresp = getmodelresp(p, pedC, contrastinc)
+    
+                if contrastinc > 100:
+                    modelresp = 999
+    
+            if modelresp < 999:
+                while (modelresp - baseline) > p[6]:
+                    contrastinc -= 0.001
+                    if cond == 1:
+                        modelresp = getmodelresp(p, pedC + contrastinc, 0)
+                    elif cond == 2:
+                        modelresp = getmodelresp(p, pedC + contrastinc, pedC + contrastinc)
+                    elif cond == 3:
+                        modelresp = getmodelresp(p, pedC + contrastinc, pedC)
+                    elif cond == 4:
+                        modelresp = getmodelresp(p, pedC, contrastinc)
+        else:
+            contrastinc = 99
+    
+        return contrastinc
+    
+    def errorfit(p):
+    
+        p = 10**np.array(p)
+        p[1] = p[1] + 1
+        p[1] = min(p[1], 16)
+        p[0] = 1 + p[0] + p[1]
+        p[0] = min(p[0], 20)
+        p[2] = 1 + p[2]
+    
+        if len(p) == 7:
+    
+            p = np.append(p, 1)  # append p[7]=1  Minkowski exponent of 1 in the summation model
+    
+        pedlevelsC = 10**(pedlist / 20)
+        pedlevelsC[0] = 0
+        allpred = np.zeros((4, len(pedlist)))
+    
+        for cond in range(1, 5):
+            for pedlev in range(len(pedlist)):
+                allpred[cond - 1, pedlev] = discriminate(p, pedlevelsC[pedlev], cond)
+    
+        allpreddB = 20 * np.log10(allpred)
+        rms = np.sqrt(np.mean((allpreddB - datatofit) ** 2))  # return RMS error
+    
+        if np.isnan(rms):
+            rms = 999
+    
+        return rms
+    
+    #%% fit linear summation model
+    
+    allp = None
+    allrms = None
+    
+    nfits = ntotalsimplexfits
+    
+    ###################################
+    def runfitting():
+    
+        initial_params = np.random.normal(0, 0.1, 7 ) + np.log10([0.5, 5.5, 0.3, 1, 0.01, 1, 0.2])
+        sout = minimize(errorfit, initial_params,  method='Nelder-Mead', tol= 1e-10)
+    
+        if sout.success:
+            print("Optimization successfully", sout.x)
+            allout = np.concatenate(([errorfit(sout.x)], sout.x, [0]))
+    
+            filecount = 1
+            while True:
+                filepath = f"{fitpath}M1f{filecount}.npz"
+                if not os.path.exists(filepath):
+                    np.savez(filepath, allout=allout)
+                    break
+                filecount += 1
+            return allout
+        else:
+            raise ValueError("Optimization failed")
+    
+    allparams = np.zeros((ntotalsimplexfits, 9))
+    
+    nfits = ntotalsimplexfits
+    for n in range(1, ntotalsimplexfits + 1):
+        if os.path.exists(os.path.join(fitpath, f'M1f{n}.npz')):
+            nfits -= 1
+    
+    if nfits > 0:
+        for i in range(nfits):
+            result = runfitting()
+            allparams[i] = result  # Store each result in the allparams array
+    
+    
+    ####################################
+    
+    finalout = np.zeros((ntotalsimplexfits, 9))
+    for n in range(1, ntotalsimplexfits + 1):
+        filepath = f"{fitpath}M1f{n}.npz"
+        if os.path.exists(filepath):
+            data = np.load(filepath)
+            allout = data['allout']
+    
+            finalout[n - 1, :] = allout
+    
+    
+    i = np.argmin(finalout[:, 0])  #Finds the row index i of the minimum value in the first column of finalout
+    p = 10 ** finalout[i, 1:9]  #take the corresponding parameters
+    allrms = finalout[i, 0]
+    p[1] += 1
+    p[1] = min(p[1], 16)
+    p[0] = 1 + p[0] + p[1]
+    p[0] = min(p[0], 20)
+    p[2] += 1
+    allp = p
+    allparams = finalout
+    
+    #np.save(os.path.join(fitpath, 'simplexfitsM1.npz'), {'allp': allp, 'allrms': allrms, 'allparams': allparams, 'ntotalsimplexfits': ntotalsimplexfits})
+    model1params = allp
+    model1rms = allrms
+    
+    ####Generate prediction data
+    pedlist = np.arange(-12, 40)
+    pedlevelsC = 10 ** (pedlist / 20)
+    pedlevelsC[0] = 0
+    
+    allpred = np.zeros((4, len(pedlist)))
+    for cond in range(1,5):
+        for pedlev in range(len(pedlist)):
+            allpred[cond-1, pedlev] = discriminate(allp, pedlevelsC[pedlev], cond)
+    
+    allpreddB = 20 * np.log10(allpred)
+    
+    condition = [ 'Pentadactyl', 'Dekadactyl', 'Half-Dekadactyl', 'Dichodactyl']
+    collist = ['red', 'blue', 'orange', 'darkgreen']
+    
+    #%% plot fitting result
+    plt.figure(figsize=(20, 6))
+    plt.subplot(1, 2, 1)
+    
+    for cond in range(4):
+        plt.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker='o', label=condition[cond])
+        plt.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='o', color=collist[cond])
+        plt.plot(pedlist,allpreddB[cond], color=collist[cond], lw=2 )
+    
+    plt.xlabel('Pedestal contrast (%)',fontsize=20 )
+    plt.ylabel('Threshold (%)', fontsize=20)
+    plt.title('Linear summation model', fontsize=20)
+    plt.xlim(-12,31)
+    plt.ylim(-12,31)
+    plt.yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 15)
+    plt.xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 15  )
+    plt.legend(loc=2, prop={'size': 15})
+    leg = plt.legend()
+    leg.get_frame().set_edgecolor('black')
+    for text in leg.get_texts():
+        text.set_fontsize(13)
+    
+    plt.plot([-12, 30], [-12, 30], linestyle="--")
+    
+    model1rms=round(model1rms,2)
+    print(model1rms)
+    print(model1params)
+    
+    ################################ fit Minkowski summation model
+    allp2 = None
+    allrms2 = None
+    
+    pedlist = np.arange(-12,31,6)
+    datatofit = meanthresh
+    
+    nfits = ntotalsimplexfits
+    
+    ###################################
+    def runfitting2():
+    
+        initial_params = np.random.normal(0, 0.1, 8 ) + np.log10([0.5, 5.5, 0.3, 1, 0.01, 1, 0.2, 4])
+        sout = minimize(errorfit, initial_params,  method='Nelder-Mead', tol= 1e-10)
+    
+        if sout.success:
+            print("Optimization successfully", sout.x)
+            allout = np.concatenate(([errorfit(sout.x)], sout.x))
+    
+            # Save to a unique file
+            filecount = 1
+            while True:
+                filepath = f"{fitpath}M2f{filecount}.npz"
+                if not os.path.exists(filepath):
+                    np.savez(filepath, allout=allout)
+                    break
+                filecount += 1
+            return allout
+        else:
+            raise ValueError("Optimization failed")
+    
+    allparams2 = np.zeros((ntotalsimplexfits, 9))
+    
+    nfits = ntotalsimplexfits
+    for n in range(1, ntotalsimplexfits + 1):
+        if os.path.exists(os.path.join(fitpath, f'M2f{n}.npz')):
+            nfits -= 1
+    
+    if nfits > 0:
+        for i in range(nfits):
+            result2 = runfitting2()
+            allparams2[i] = result2  # Store each result in the allparams array
+    
+    finalout2 = np.zeros((ntotalsimplexfits, 9))
+    for n in range(1, ntotalsimplexfits + 1):
+        filepath = f"{fitpath}M2f{n}.npz"
+        if os.path.exists(filepath):
+            data = np.load(filepath)
+            allout = data['allout']
+    
+            finalout2[n - 1, :] = allout
+    
+    i = np.argmin(finalout2[:, 0])  #Finds the row index i of the minimum value in the first column of finalout
+    p = 10 ** finalout2[i, 1:9]  #take the corresponding parameters
+    allrms2 = finalout2[i, 0]
+    p[1] += 1
+    p[1] = min(p[1], 16)
+    p[0] = 1 + p[0] + p[1]
+    p[0] = min(p[0], 20)
+    p[2] += 1
+    
+    allp2 = p
+    allparams2 = finalout2
+    
+    #np.save(os.path.join(fitpath, 'simplexfitsM2.npy'), {'allp': allp, 'allrms': allrms, 'allparams': allparams, 'ntotalsimplexfits': ntotalsimplexfits})
+    model2params = allp2
+    model2rms = allrms2
+    
+    #%% plot fitting result
+    pedlist = np.arange(-12, 40)
+    pedlevelsC = 10 ** (pedlist / 20)
+    pedlevelsC[0] = 0
+    
+    #### generate prediction data
+    allpred2= np.zeros((4, len(pedlist)))
+    for cond in range(1,5):
+        for pedlev in range(len(pedlist)):
+            allpred2[cond-1, pedlev] = discriminate(allp2, pedlevelsC[pedlev], cond)
+    
+    
+    allpreddB2 = 20 * np.log10(allpred2)
+    
+    plt.figure(figsize=(20, 6))
+    plt.subplot(1, 2, 2)
+    for cond in range(4):
+        plt.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker='o', label=condition[cond])
+        plt.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='o', color=collist[cond])
+        plt.plot(pedlist,allpreddB2[cond], color=collist[cond], lw=2 )
+    
+    plt.xlabel('Pedestal contrast (%)',fontsize=20 )
+    plt.ylabel('Threshold (%)', fontsize=20)
+    plt.title('Minkowski summation model', fontsize=20)
+    plt.xlim(-12,31)
+    plt.ylim(-12,31)
+    plt.yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 15)
+    plt.xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 15  )
+    plt.legend(loc=2, prop={'size': 15})
+    leg = plt.legend()
+    leg.get_frame().set_edgecolor('black')
+    for text in leg.get_texts():
+        text.set_fontsize(13)
+    
+    plt.plot([-12, 30], [-12, 30], linestyle="--")
+    
+    plt.subplots_adjust(wspace=0.8)
+    plt.savefig('Figures/dipperfit.pdf')
+    
+    model2rms=round(model2rms,2)
+    print(model2rms)
+    print(model2params)
+
+```
+
+```{python fitEEG}
+
+if r.fitmodels:
+    ntotalsimplexfits = 10
+    
+    fitpath = "local/fits2/"
+    if not os.path.exists(fitpath):
+        os.makedirs(fitpath)
+    
+    EEGF1 = np.load("local/allF1.npy")   # 30*6*5
+    meanF1 = np.mean(EEGF1, axis=0)  #6*5
+    n = meanF1.shape[0]
+    stdF1 = np.std(EEGF1, axis=0, ddof=1)
+    SEF1 = stdF1 / np.sqrt(n)  #6*5
+    
+    EEGF2 = np.load("local/allF2.npy")   # 30*6*5
+    meanF2 = np.mean(EEGF2, axis=0)  #6*5
+    n = meanF2.shape[0]
+    stdF2 = np.std(EEGF2, axis=0, ddof=1)
+    SEF2 = stdF2 / np.sqrt(n)
+    
+    mean = np.concatenate((meanF1, meanF2) , axis=0)  #12*5 , mean data of 26 and 23Hz
+    SE = np.concatenate((SEF1, SEF2) , axis=0)  #12*5
+    
+    def get_twoStage_model1(A, B, C, D, p):  # [A, B]= 26Hz, [C, D]= 23Hz
+    
+        p = np.power(10, p)
+        respAL = (A ** p[0]) / (p[2] + A + p[3] * B + p[3] * D)
+        respAR = (B ** p[0]) / (p[2] + B + p[3] * A + p[3] * C)
+        bsA = p[4]*(respAL + respAR)
+        respA = bsA + p[1]
+        return respA
+    
+    def get_twoStage_model2(A, B, C, D, p):  # [A, B]= 26Hz, [C, D]= 23Hz
+        p = np.power(10, p)
+    
+        respBL = (C ** p[0]) / (p[2] + C + p[3] * D + p[3] * B)
+        respBR = (D ** p[0]) / (p[2] + D + p[3] * C + p[3] * A)
+        bsB = p[4]*(respBL + respBR)
+        respB = bsB + p[1]
+        return respB
+    
+    def get_twoStage_modelresp(p):
+    #
+        contrastsdB=np.arange(12,37,6 )
+        contrastsC = 10**(contrastsdB / 20)
+        contrastsC[0] = 0
+    
+        responses = np.array([
+            # 26 Hz
+            get_twoStage_model1(contrastsC, 0, 0, 0, p ),  # Pentadactyl_resp
+            get_twoStage_model1(contrastsC, contrastsC, 0, 0, p),  # Dekadactyl_resp
+            get_twoStage_model1(contrastsC, contrastsC[3], 0, 0, p),  # Dichodactyl_resp
+            get_twoStage_model1(0, 0, contrastsC, 0, p),  # crossPentadactyl_resp
+            get_twoStage_model1(contrastsC, 0, 0, contrastsC, p),  # crossDekadactyl_resp
+            get_twoStage_model1(contrastsC, 0, 0, contrastsC[3],  p),  # crossDichodactyl_resp
+            ## 23 Hz
+            get_twoStage_model2(contrastsC, 0, 0, 0, p ),  # Pentadactyl_resp
+            get_twoStage_model2(contrastsC, contrastsC, 0, 0, p),  # Dekadactyl_resp
+            get_twoStage_model2(contrastsC, contrastsC[3], 0, 0, p),  # Dichodactyl_resp
+            get_twoStage_model2(0, 0, contrastsC, 0, p),  # crossPentadactyl_resp
+            get_twoStage_model2(contrastsC, 0, 0, contrastsC, p),  # crossDekadactyl_resp
+            get_twoStage_model2(contrastsC, 0, 0, contrastsC[3],  p),  # crossDichodactyl_resp
+    
+        ])
+    
+        return responses   #12*5
+    
+    def geterror(p):
+        modelpredictions = get_twoStage_modelresp(p)   # 6*5
+        rms = np.sqrt(np.mean((modelpredictions - mean )**2))
+        return rms
+    
+    allp = None
+    allrms = None
+    
+    def runfitting():
+        initial_params = [1.5, 0.05, 20, 0.5, 0.2]+ 0.01 * np.random.randn(5)
+        sout = minimize(geterror, np.log10(initial_params),  method='Nelder-Mead', tol= 1e-10)
+        allout = np.concatenate(([geterror(sout.x)], sout.x))
+        return allout
+      
+        # if sout.success:
+        #     print("Optimization successful", sout.x)
+        #     allout = np.concatenate(([geterror(sout.x)], sout.x))
+        #     filecount = 1
+        #     while True:
+        #         filepath = f"{fitpath}M1f{filecount}.npz"
+        #         if not os.path.exists(filepath):
+        #             np.savez(filepath, allout=allout)
+        #             break
+        #         filecount += 1
+        #     return allout
+        # else:
+        #     print("Optimization did not converge.")
+        #     #raise ValueError("Optimization failed")
+    
+    
+    # nfits = ntotalsimplexfits
+    # for n in range(1, ntotalsimplexfits + 1):
+    #     if os.path.exists(os.path.join(fitpath, f'M1f{n}.npz')):
+    #         nfits -= 1
+    
+    
+    allparams = np.zeros((ntotalsimplexfits, 6))
+    for i in range(ntotalsimplexfits):
+      result = runfitting()
+      print(result)
+      allparams[i] = result
+    
+    finalout = allparams
+    
+    # finalout = np.zeros((ntotalsimplexfits, 6))
+    # for n in range(1, ntotalsimplexfits + 1):
+    #     filepath = f"{fitpath}M1f{n}.npz"
+    #     if os.path.exists(filepath):
+    #         data = np.load(filepath)
+    #         allout = data['allout']
+    #         finalout[n - 1, :] = allout
+    
+    i = np.argmin(finalout[:, 0])
+    p = finalout[i, 1:6]
+    
+    allresp = get_twoStage_modelresp(p)
+    
+    allrms = finalout[i, 0]
+    allp = 10** p
+    allparams = finalout
+    
+    modelparams = allp
+    print("model 1 optimized p:", modelparams)
+    
+    modelRMS = allrms
+    modelRMS=round(modelRMS,2)
+    print("model 1 rms:", modelRMS)
+    
+     ### Generate prediction responses  #12*5
+    
+    contrastsdB=np.arange(12,37,6)
+    contrastsC = 10**(contrastsdB / 20)
+    contrastsC[0] = 0
+    
+    conditions = ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl', 'Cross-Dekadactyl', 'Cross-Dichodactyl', 'Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl', 'Cross-Dekadactyl', 'Cross-Dichodactyl']
+    
+    legend_elements = []
+    linestyles = ['b--', 'r--', 'g--', 'y--', 'm--', 'k--', 'b--', 'r--', 'g--', 'y--', 'm--', 'k--']
+    markerfacecolor = ['b','r', 'g', 'y','m', 'k', 'b','r', 'g', 'y','m', 'k']
+    markers = ['o', 's', '^', 'o', 's', '^', 'o', 's', '^', 'o', 's', '^']
+    
+    # Plot fitting result of 26 Hz
+    for i, linestyle, marker in zip(range(6), linestyles, markers):   # First 6 raws represent data at 26Hz
+        plt.scatter(contrastsdB, mean[i,:], marker=markers[i], facecolors=markerfacecolor[i])
+        plt.errorbar(contrastsdB, mean[i,:], yerr=SE[i,:], fmt='o',  color=markerfacecolor[i])
+        plt.plot(contrastsdB, allresp[i], linestyle, label=conditions[i])
+        legend_elements.append(Line2D([0], [0], color=linestyle[0], linestyle=linestyle[1:], marker=markers[i], label=conditions[i]))
+    
+    plt.title("26 Hz", fontsize = 20)
+    plt.xlabel('Intensity level (%)',fontsize = 20)
+    plt.xticks(contrastsdB,[0, 8, 16, 32, 64],fontsize = 15)
+    plt.yticks(fontsize = 15)
+    plt.ylabel('Model response',fontsize = 20)
+    plt.legend(handles=legend_elements, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+    plt.savefig('Figures/EEGfitA.pdf')
+    
+    # Plot fitting result of 23 Hz
+    legend_elements = []
+    for i, linestyle, marker in zip(range(6,12), linestyles, markers):     # Last 6 raws represent data at 23Hz
+        plt.scatter(contrastsdB, mean[i,:], marker=markers[i], facecolors=markerfacecolor[i-6])
+        plt.errorbar(contrastsdB, mean[i,:], yerr=SE[i,:], fmt='o',  color=markerfacecolor[i-6])
+        plt.plot(contrastsdB, allresp[i], linestyle, label=conditions[i-6])
+        legend_elements.append(Line2D([0], [0], color=linestyle[0], linestyle=linestyle[1:], marker=markers[i], label=conditions[i-6]))
+    
+    plt.title("23 Hz", fontsize = 20)
+    plt.xlabel('Intensity level (%)',fontsize = 20)
+    plt.xticks(contrastsdB,[0, 8, 16, 32, 64],fontsize = 15 )
+    plt.yticks(fontsize = 15 )
+    plt.ylabel('Model response',fontsize = 20)
+    plt.legend(handles=legend_elements, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+    plt.savefig('Figures/EEGfitB.pdf')
+
+```
+
+
+
+# Abstract
+
+
+# Introduction
+
+Signal combination is crucial for human perception and our interaction with the environment. Our sensory systems comprise a variety of receptors and neural pathways that detect and process a wide range of stimuli, including sight, hearing, touch, and smell. To construct a coherent and comprehensive representation of our surroundings, the brain must filter out overlapping or redundant information and avoid excessively strong signals to prevent sensory overload. Therefore, in addition to additive processes, suppressive processes are also involved in signal combination. This suppression during signal combination has been investigated both within [e.g., vision, audition, vibration] [@Baker2017; @Baker2020; @Biermann1998; @Gandevia1983] and between [e.g., tactile-visual, auditory-visual]  [@Ide2013; @Hidaka2015] modalities.
+
+In visual and auditory perception, psychophysical studies have shown that the sensitivity of binocular or binaural perception is typically between a factor of $\sqrt{2}$ and 2 better than monocular or monaural perception at threshold [@Baker2018; @Baker2020; @Campbell1965]. This summation at threshold implies the existence of physiological mechanisms that combine signals across eyes or ears. Above threshold, detection performance improves when a weak fixed intensity (‘pedestal’) stimulus  is added, a phenomenon known as the facilitation effect. For higher intensity pedestals, performance worsens, producing a masking effect. When plotted against pedestal intensity, the discrimination thresholds exhibit a "dipper" shape (Fig. 1b). The threshold was reduced as a result of the facilitation effect at lower pedestal intensities, causing the downward slope of the dipper. Conversely, the masking effect raised the threshold at higher pedestal intensities, leading to an upward slope. These facilitation and masking effects arise from the brain transducing physical signals into neural responses in a non-linear manner, and are observed for many sensory stimuli [@Baker2020; @Campbell1966; @Legge1980]. 
+
+We can directly measure the response to stimuli of different intensities by recording brain activity. One convenient method is the steady state technique, in which periodic stimulus oscillations are reflected in electromagnetic neural responses at the same frequency, which can be recorded using EEG or MEG. For instance, some EEG studies have investigated the signal combination process in visual and auditory modalities by recording steady-state brain signals [@Baker2017; @Baker2020]. These studies found that brain responses increased when inputs were doubled, but by less than a factor of two. Additionally, when a mask was added instead of a signal input (oscillating at a different frequency), the brain response decreased due to suppression.
+
+The process by which the brain combines multiple signals has attracted great interest in recent years, leading to the proposal of several computational models. The two stage model [@Meese2006] successfully accounts for both binocular and binaural perception, positing that the signal from one channel (left or right) is inhibited by the other channel before being summed. The equations describing this model are defined as:
+
+$$Stage1_L = \frac{C^m_L}{S + C_L + \omega C_R}$$
+
+$$Stage1_R = \frac{C^m_R}{S + C_R + \omega C_L}$$
+
+$$binsum = Stage1_L + Stage1_R$$
+
+$$resp = \frac{binsum^p}{Z + binsum^q}$$
+
+where $resp$ is the binocular or binaural model response, $C_L$ and $C_R$ are the contrast signals in the left and right channels respectively, $m$, $S$, $\omega$, $p$, $q$ and $Z$ are free parameters, $\omega$ is the weight of suppression from the other channel. In vision, the weight of suppression is approximately $\omega = 1$, whereas in auditory perception, suppression between ears is dramatically weaker, with $\omega$ close to 0. Therefore, while the suppression effect is common in the signal combination process, it varies across different modalities. 
+
+In tactile perception, some neuroimaging findings suggest there exist summation and suppression in vibration signal combination as well. For instance, studies have recorded brain responses to vibration stimuli delivered to two fingers separately and simultaneously. Results indicated that at low levels of stimulation near the perceptual threshold, there was a facilitation or summation effect between two fingers. However, at higher levels of stimulation, a suppression effect was observed [@Gandevia1983]. Furthermore, the brain response to simultaneous vibration of two fingers is less than (approximately 50\% of) the sum of the responses to individual finger stimuli [@Biermann1998; @Gandevia1983]. In addition, the extent of suppression is dependent on the spatial distance between the fingers [@Gandevia1983; @Hoechstetter2001]. In some psychophysical studies, researchers measured vibration detection thresholds using various contactor sizes [@Gescheider2005; @Gu2013]. Results found that the threshold decreased as the contactor size increased, a phenomenon known as area summation. Specifically, when the contactor size was doubled, the threshold decreased by approximately 3 dB [@Gescheider2005]. These findings focused on the summation rather than suppression between inputs, because suppressive processes are minimal at low intensities. In summary, although substantial evidence suggests the existence of suppression in vibration combination, there has been relatively little psychophysical work above threshold, and a corresponding computational model has yet to be developed.
+
+Here, we combine psychophysical measurements (Experiment 1) with EEG recordings (Experiment 2) to assess human vibration perception, and fit a computational model to interpret the processes of vibration signal combination and suppression. In Experiment 1, we measure how thresholds vary across different conditions and pedestal levels using a two-interval forced-choice (2IFC) task. We find that thresholds decrease by approximately 1 dB when the number of inputs was doubled. This finding is consistent with probability summation rather than physiological summation. While a suppression effect was observed, the results of the computational model were inconclusive regarding whether this effect came from suppression between digits or the MAX operator. Consequently, in the EEG experiment, we directly measured suppression between digits. The modelling results indicated that the inhibitory weight of suppression is (?) which is intermediate between the weights observed for vision and audition.
+
+# Materials and Methods
+
+## Participants
+
+Eight adult subjects participated in the psychophysics experiment, and thirty-one adult subjects participated in the EEG experiment. All participants self-reported as healthy, with no diagnosed neurological disorders, and no history of exposure to severe hand-transmitted vibration. Both experiments were approved by the ethics committee of the Department of Psychology at the University of York (application IDs 2277 and 2303). Written informed consent was obtained from all participants prior to conducting the experiments.
+
+## Apparatus & stimuli
+
+Vibration stimuli were generated by a specially constructed board with ten fixed solenoids ('tactor' devices, from Dancer Design Ltd.) controlled by a computer (Fig. 1c). Each solenoid could be independently driven by a pair of 6-channel USB sound cards to vibrate each finger. The outputs of the sound cards were amplified by a 10-channel linear amplifier, which produced a maximum output modulation of $\pm 7.5$V, for a maximum vibration amplitude of $\pm 0.375$N. All the stimuli were generated and presented using MATLAB and Psychtoolbox 3 [@Kleiner2007; @Brainard1997]. Any sounds produced by the vibrations were rendered inaudible by playing a 440 Hz tone on the remaining two sound card outputs, which was delivered to participants over a pair of headphones.
+
+EEG signals were recorded using a 64-channel electrode cap and an ANT Neuroscan (ANT Neuro, Netherlands) amplifier sampling at 1kHz. Electrodes were arranged according to the 10-20 system, and impedances were kept below $5k \Omega$. Digital triggers were sent to the EEG amplifier using a USB TTL module (Black Box Toolkit Ltd., UK), signifying the start of the trial. The whole head average was used as a reference for the EEG data, and the ground electrode was located at position $AFz$.
+ 
+## Psychophysical procedures
+
+In Experiment 1, a two-interval forced-choice (2IFC) task was used to measure detection and discrimination thresholds. During the experiment, participants were instructed to place their ten digits on the corresponding solenoids, and a series of vibration stimuli were delivered to their hands. The digits on each hand were coded 1 to 5 from the thumb to the little finger in that order. The digits 1, 3 and 5 on the left hand and 2 and 4 on the right hand are denoted "Set A", and the digits 2 and 4 on the left hand, and 1, 3 and 5 on the right hand are denoted "Set B" (illustrated in Fig. 1d).
+
+Each trial consisted of two 500 ms intervals: one containing the pedestal stimulus and the other containing the pedestal stimulus plus a target increment, separated by a 400 ms inter-stimulus interval. The next trial began 200 ms after the participant responded. To mask any sound produced by the solenoids and indicate the stimulus intervals, a 440 Hz beep sound was delivered through headphones simultaneously with the vibration stimuli. The order of the two intervals was randomised, and participants were required to determine which interval contained the target increment by pressing a foot pedal. Feedback was provided by a coloured square on the computer screen, with green indicating a correct response and red indicating an incorrect one. The amplitude of the target increment was determined using a pair of 3-down-1-up staircases, with a step size of 3 dB (where dB units are defined as $20 \times log_{10}(100 \times C)$, where $C$ is the stimulus intensity expressed as a percentage of the maximum system output), aiming to distribute trials around the detection threshold at 75\% correct. Threshold measurement was terminated after either 70 trials or 12 reversals, whichever occurred first.
+
+The pedestal and target stimuli were presented under four conditions (illustrated in Fig. 1a) and at eight pedestal levels (0, 1, 2, 4, 8, 16, 32, 64\%), with the pedestal level expressed as a percentage of the maximum vibration. In the "pentadactyl" condition (meaning five-fingered in Greek), the pedestal and target stimuli vibrated only "Set A" (analogous to the stimulation of one eye or one ear). In the "dekadactyl" (ten-fingered) condition, the pedestal and target stimuli vibrated both "Set A" and "Set B" (analogous to the stimulation of both eyes or both ears). Comparing the "pentadactyl" and "dekadactyl" conditions reveals the summation effect of doubling the input. In the "dichodactyl" condition (named for consistency with dichoptic conditions in vision experiments, where different stimuli are shown to the two eyes), the pedestal stimulus vibrated "Set A" and the target stimulus vibrated "Set B", allowing for the observation of the masking effect across digits. The "half-dekadactyl" condition involved vibrating all ten digits for the pedestal stimulus, while only "Set A" vibrated for the target stimulus, enabling measurement of summation (by comparison with the dekadactyl condition) while controlling the number of digits receiving the pedestal stimulus. In all conditions, the vibration frequency for both pedestal and target stimuli was 26 Hz. "Set A" and "Set B" were counterbalanced across trials. Each pedestal level was tested in a single block lasting approximately 15 minutes and repeated three times. The entire experiment took around 7 hours per participant, resulting in an average of 7,555 trials per participant, and was completed over multiple days.
+
+## EEG procedures
+
+After EEG cap set-up, participants in Experiment 2 were exposed to a series of vibrations under six different conditions (illustrated in Fig. 1e) with five intensity levels (0, 8, 16, 32, 64\%). Steady-state somatosensory evoked potential (SSSEP) signals were recorded throughout the experiment. During each trial, participants received an 11-s vibration with a 3-s interstimulus interval and were required to keep their hands still until designated break periods. The "Set A" and "Set B" conditions were the same as those used in the psychophysical experiment and were counterbalanced across trials. The order of conditions was randomised, and each condition was repeated twice for each set, resulting in a total of 120 trials. The entire experiment took approximately 30 minutes, split into four 7-minute blocks with rest breaks between blocks.
+
+Two different frequencies were used: 26 Hz (F1) and 23 Hz (F2). F1 is considered the primary frequency, as SSSEP responses are greatest around 26Hz when vibration is delivered to the hands [@Snyder1992]. Using two distinct frequencies enables measurement of both the separate responses to each frequency and the interactions between them. In the "pentadactyl" condition, F1 only vibrated "Set A"; in the "dekadactyl" condition, F1 vibrated both "Set A" and "Set B"; in the "dichodactyl" condition, F1 vibrated "Set A" while a mask at 26 Hz with an intensity level of 32% vibrated "Set B". These three conditions contributed to the observation of summation and suppression effects at the same frequency. In the remaining three conditions, a second frequency (F2) was introduced to investigate interactions between different frequencies. In the "cross-pentadactyl" condition, F2 vibrated "Set A", providing a comparison with the "pentadactyl" condition and serving as a baseline for other cross-frequency conditions. In the "cross-dekadactyl" condition, F1 vibrated "Set A" and F2 vibrated "Set B", permitting measurement of suppression effects between different frequencies. In the "cross-dichodactyl" condition, F1 vibrated "Set A" while the F2 mask (intensity level of 32\%) vibrated "Set B", again to measure suppression between digits.
+
+## Data analysis
+
+For both experiments, off-line analysis and statistical testing was performed in Python 3. For psychophysical data, the $psignifit$ 4 package [@Schutt2016] was used to estimate thresholds (at 75\% correct) and slope parameters of the psychometric functions by fitting a cumulative Gaussian. We then converted the slope parameter ($\sigma$) to equivalent Weibull $\beta$ values using the approximation $\beta = 10.3/\sigma$.
+
+For EEG data, all preprocessing was conducted using MNE-Python [@Gramfort2013]. For each trial, the initial 1000 ms post-stimulus presentation was discarded to eliminate onset transients. The remaining 10 s were Fourier transformed and the amplitudes were averaged across repetitions and participants. Amplitudes exceeding ±3 standard deviations from the mean were excluded. After removing one outlier, data from 30 participants remained for calculating the intensity-response functions and performing statistical analysis. The average amplitudes from six electrodes ($F1$, $F2$, $Fz$, $FC1$, $FC2$, $FCz$) were then averaged to plot the amplitude spectra and intensity-response functions. The primary dependent variables were the Fourier amplitudes at 26 Hz and 23 Hz.
+
+## Computational modelling
+
+
+
+# Results
+
+## Summation and suppression effects on vibration thresholds
+
+In Experiment 1, participants were required to report which interval included the target stimulus. The average thresholds across 8 participants for each condition and pedestal level are shown in Figure 2a. A 4 (condition) $\times$ 8 (pedestal contrast) repeated measures ANOVA with Bonferroni-corrected post-hoc tests was used to assess statistical differences between factors. Results found significant main effects of condition (F = 285.66, p < 0.01, $\eta_G^2$ = 0.67, Greenhouse-Geisser corrected) and pedestal level (F = 71.75, p < 0.01, $\eta_G^2$ =0.84, Greenhouse-Geisser corrected), as well as a significant interaction between the two factors (F = 28.19, p < 0.01, $\eta_G^2$ = 0.43, Greenhouse-Geisser corrected). When plotting the thresholds against pedestal level, except for the "dichodactyl" condition (green diamonds), the other three conditions exhibited a "dipper" shape. Specifically, at low pedestal levels (0.5 to 2\%), thresholds decreased with increasing pedestal level, indicating a facilitation effect. When the pedestal level exceeded 2\%, thresholds increased due to a masking effect, resulting in approximately parallel handles across the "pentadactyl" (blue circles), "dekadactyl" (red squares) and "half-dekadactyl" (orange triangles) conditions. At detection threshold (pedestal level = 0\%), the threshold for the ‘dekadactyl’ condition was around 1 dB lower than for the ‘pentadactyl’ condition, with no significant difference. This weak summation between digits is lower than what is typically attributed to physiological summation, suggesting the presence of probability summation instead [@Quick1974; @Tyler2000].
+
+Above detection threshold, thresholds in the "dekadactyl" condition were significantly lower than those in the "pentadactyl" condition (p < 0.05, except at 8\%, p < 0.01), with the exception of pedestal levels at 2\% and 16\%. On average, the thresholds decreased by a factor of approximately 1.32 (2.42 dB). Additionally, thresholds in the "half-dekadactyl" condition, where the pedestal stimulus vibrated 10 digits, but the target stimulus only vibrated 5 digits, were significantly higher than those in the "dekadactyl" condition at pedestal of 0.5\% (p = 0.01), and 2\% to 32\% (p < 0.001). These findings suggest a summation effect when the inputs were doubled. In the "dichodactyl" condition, thresholds increased across all pedestal levels, with thresholds elevated by a factor of 8 (17.80 dB) at the highest pedestal level (32\%). This result indicates a suppression effect when adding a mask between digits, where the target stimulus could only be detected when it approached the pedestal intensity.
+
+The slopes of the psychometric function for each condition are illustrated in Figure 2b. At detection threshold, all conditions exhibited relatively steep slopes, around $\beta = 4$. At low pedestal levels (0 to 4\%), except for in the "dichodactyl" condition (green triangles), the slopes decreased with increasing pedestal level, approaching $\beta = 1$ at a pedestal level of 4\%. At higher pedestal levels (4\% to 32\%), the slopes for these three conditions remained shallow, consistent with previous studies using the same paradigm [@Foley1981; @Meese2006]. In contrast, the slopes in the "dichodactyl" condition remained steep across all pedestal levels, with slight variations between $\beta = 2$ and 5. This pattern differs from those observed in dichoptic masking in vision [@Meese2006; @Baker2024], where slopes were steep at detection threshold, became shallow at lower contrast levels, and then became very steep again at higher contrast levels (see Appendix, Fig.?). The very steep slopes ($\beta \sim 6$) in dichoptic masking are attributed to mandatory physiological summation between the eyes [@Baker2013]. Therefore, the approximately constant slopes observed in the "dichodactyl" condition suggest that physiological summation between digits is unlikely.
+
+## Model results of psychophysical data
+
+## Summation and suppression effects on neural responses
+
+The average amplitude spectra and scalp distributions for four conditions of Experiment 2 are shown in Fig. 3a-d. The steady-state EEG signals were strongest at fronto-central electrodes for both frequencies, aligning with findings from previous studies involving finger vibration [@Porcu2014; @Timora2018]. Therefore, we averaged the EEG responses across six electrodes ($F1$, $F2$, $Fz$, $FC1$, $FC2$, $FCz$) to calculate intensity-response functions at both 23 Hz and 26 Hz.
+
+In the "pentadactyl" (blue circles) and "dekadactyl" (red squares) conditions, where a 26 Hz stimulus was used, we observed a peak at 26 Hz in both Fig. 3a and 3b, with a stronger brain activity at the central frontal region in the "dekadactyl" condition. A similar pattern was observed in the "cross-pentadactyl" (yellow triangles) condition, where a 23 Hz stimulus resulted in a peak at 23 Hz. In the "cross-dekadactyl" (pink pentagons) condition, when two different frequencies were simultaneously presented, peaks were observed at the original frequencies (26 Hz (F1) and 23 Hz (F2)) as well as at specific intermodulation frequencies (20 Hz ($2 \times F2 - F1$) and 29 Hz ($2 \times F1 - F2$)). Additionally, brain activity in the "cross-dichodactyl" condition was similar to that in the "cross-dekadactyl" condition.
+
+Two 6 (condition) x 5 (intensity) repeated measures ANOVAs with Bonferroni-corrected post-hoc tests were conducted on the EEG amplitudes at each frequency separately. At 26 Hz, significant main effects of condition (F = 86.61, p < 0.001, $\eta_G^2$ = 0.40, Greenhouse-Geisser corrected), intensity level (F = 144.86, p < 0.001, $\eta_G^2$ = 0.39, Greenhouse-Geisser corrected), and a significant interaction effect (F = 18.10, p < 0.001, $\eta_G^2$ = 0.17) were observed. Figures 3e (26 Hz) and 3f (23 Hz) show the intensity-response functions. In the "pentadactyl" condition (blue circles), EEG amplitudes increased monotonically with increasing intensity level (Fig. 3e). In the "dekadactyl" condition (red squares), doubling the inputs led to significantly stronger responses at intensity levels of 8\% (p < 0.01), 16\% (p < 0.001), and 32\% (p < 0.001). Compared to the "pentadactyl" condition, average amplitudes increased by a factor of 1.4 across all intensity levels, indicating a summation effect. In the "dichodactyl" condition (green triangles), the target stimulus was presented to "Set A", while a fixed vibration at 32\% of maximum intensity was presented to "Set B", resulting in an increased response with increasing intensity levels. At higher intensity levels (32 to 64\%), the responses in the "dichodactyl" condition approximated those in the "dekadactyl" condition. In the "cross-dekadactyl" (pink pentagons) and "cross-dichodactyl" (black diamonds) conditions, two different frequencies were presented simultaneously. Instead of summing, they suppressed each other, leading to weaker responses compared to the "pentadactyl" condition, with a significant difference observed between the "pentadactyl" and "cross-dichodactyl" conditions at the 16\% intensity level (p < 0.001).
+
+At 23 Hz, we also found significant main effects of condition (F = 146.40, p < 0.001, $\eta_G^2$ = 0.55, Greenhouse-Geisser corrected), intensity level (F = 72.44, p < 0.001, $\eta_G^2$ = 0.12), as well as a significant interaction effect (F = 38.37, p < 0.001, $\eta_G^2$ = 0.37, Greenhouse-Geisser corrected). Further evidence of suppression was observed in the "cross-dekadactyl" condition, where simultaneous 23 Hz and 26 Hz stimuli led to significantly reduced responses compared to the "cross-pentadactyl" condition (yellow triangles in Fig. 3f) at intensity levels of 16\%, 32\%, and 64\% (all p < 0.001). In the "cross-dichodactyl" condition (pink pentagons in Fig. 3f), a stronger initial response at 0\% target level decreased with increasing intensity levels (F = 8.85, p < 0.01, $\eta_G^2$ = 0.13, Greenhouse-Geisser corrected), indicating a masking effect and suppression between digits. As expected, the other three conditions with a 26 Hz vibration did not show any measurable responses at 23 Hz (Fig. 3f).
+
+## Modelling
+
+
+
+# Discussion
+
+In this study, we present evidence supporting the processes of signal summation and suppression in vibrotactile signal combination. In the psychophysical experiment, we observed that doubling the inputs resulted in a slight reduction in detection and discrimination thresholds, indicating a weak summation effect. Additionally, adding a masking stimulus led to increased discrimination thresholds, indicating a suppression process. Furthermore, the EEG experiment demonstrated that adding the same frequency increases brain activity, whereas adding a different frequency decreases it. These findings provide further evidence of the summation and suppression effect between digits. Our computational model fitting results show two vibrotactile inputs suppress each other before being combined, and the weight of suppression between digits is around (0.7?), which is intermediate between the corresponding values observed in visual [@Baker2017] and auditory [@Baker2020] signal combination. Overall, our results suggest the presence of suppression in vibrotactile signal combination, with a suppression effect distinct from that observed in visual and auditory signal combination. In the remainder of this discussion, we consider the underlying mechanisms of vibrotactile signal combination and the differences across sensory modalities.
+
+Our findings are consistent with previous studies [@Gescheider2002; @Gescheider2005; @Verrillo1963] that suggest doubling inputs can reduce the vibration detection threshold. However, the summation effect observed in our study is weaker than that reported in these studies, which found a 3 dB reduction in detection threshold when using vibrations above 40 Hz and doubling the contactor size. This discrepancy may be attributed to the different vibration frequencies used in the studies. Some psychophysical studies have proposed that four distinct mechanoreceptive channels mediate vibration perception: Pacinian (P), Non-Pacinian I (NP I), Non-Pacinian II (NP II), and Non-Pacinian III (NP III) [@Bolanowski1988; @Verrillo1963]. Each channel has unique characteristics and responds to specific frequency ranges. For instance, the P channel is more sensitive to higher frequencies (e.g., greater than 40 Hz) and is the only channel that possesses the property of spatial summation [@Bolanowski1988; @Gescheider2002; @Verrillo1965]. In contrast, vibrations between 2 and 40 Hz are mediated by the NP I channel, which has been shown not to exhibit spatial summation [@Bolanowski1988; @Gescheider1994; @Verrillo1963]. Consequently, the weak summation effect observed in our study may be attributed to the 26 Hz vibration, which is determined by the NP I channel that lacks spatial summation. Additionally, unlike the study by @Gescheider2005, which used varying contactor sizes to stimulate random areas within a test region—thereby preventing participants from knowing the exact location of stimulation, our study specifically involved the stimulation of individual digits, with participants aware of which digits were being stimulated. This methodological difference likely contributed to the observed discrepancy between the studies.
+
+The results of the EEG experiment are consistent with those of the psychophysical study. Doubling the digits at the same frequency elicited stronger brain responses, though the increase was less than twofold. These findings correspond with previous studies, demonstrating that brain responses to concurrent stimuli at the same frequencies are stronger than those elicited by individual stimuli, suggesting a summation effect between inputs (Hoechstetter et al., 2002; Gandevia et al., 1983; Ishibashi et al., 2000). However, the observed response is less than the anticipated summed response, generally falling between 10\% and 50\% of the expected value, signifying a suppression effect between inputs (Gandevia et al., 1983; Ching-Liang et al., 1994). In contrast, adding a different frequency or a masking stimulus resulted in a reduction in brain activity. These results provide further evidence of suppression between digits and are consistent with previous neuroimaging studies investigating the interaction between different frequencies (Severens et al., 2010; Pang & Mueller, 2015). For instance, Severens et al. (2010) examined the suppression effect by vibrating two fingers at the same (18 Hz) or different frequencies (18 vs. 22 Hz, 18 vs. 26 Hz). Their findings revealed that the event-related potential (ERP) and SSSEP responses to simultaneous stimulation of both fingers were significantly lower than the linear summation of individual responses, with no difference in suppression based on frequency variation. This ruled out the hypothesis that suppression is due to neuronal occlusion from overlapping cortical areas, as stronger suppression would be expected at the same frequency if this were the case (Gandevia et al., 1983; Krause et al., 2001). Instead, the results support the alternative explanation of lateral inhibition, where activation of one cortical neuron suppresses neighbouring neurons’ activity (Laskin & Spencer, 1979; Brumberg et al., 1996; DiCarlo et al., 1998; Dykes et al., 1984; Mirabella et al., 2001). This inhibitory mechanism has been extensively observed in both animal and human studies (Iwamura et al., 1978, 1985; Biermann et al., 1998; Gandevia et al., 1983; Hoechstetter et al., 2001).
+
+Another interesting finding is that we observed an intermediate suppression between vibrotactile stimuli compared with vision and audition. In visual perception, the forward-facing positioning of the eyes results in substantially overlapping visual fields. To merge these overlapping inputs from each eye (monocular vision) into a cohesive single image (binocular single vision), neural signals from both eyes must exhibit strong mutual inhibition to achieve ‘ocularity invariance’, ensuring the constancy of perception through one or both eyes (Baker et al., 2007). This is congruent with recent findings indicating that some neurons in the primary visual cortex are monocularly excitable, responding exclusively to the dominant eye, while binocular stimulation can suppress their activity (Dougherty et al., 2019). In contrast, the lateral placement of the ears results in minimal overlap between auditory inputs, reducing the necessity for strong interaural inhibition to integrate these signals into a unified percept, as is required in visual processing. Instead, binaural perception benefits from the comparison and integration of these disparate inputs to localise sound sources and discern subtle differences in timing and intensity (Bruggr & Merzenich, 1973; Benson & Teas, 1976). Although prior evidence supports the existence of binaural suppression (Tiihonen et al., 1989; Gransier et al., 2017; Baker et al., 2020), the extent of this suppression may differ depending on hemispheric laterality (Kaneko et al., 2003; Fujiki et al., 2002).
+
+Tactile perception involves the stimulation of each of the ten fingers individually, creating a more complex signal integration compared to binocular or binaural perception. The primary somatosensory cortex (SI) is divided into four distinct Brodmann areas (BA 3a, 3b, 1, and 2), each responsible for mapping different parts of the body surface. Evidence suggests that receptive field of each finger is arranged in somatotopic order in BA 3b, while in BA 1/2, they are arranged in clusters with large overlap (Kurth et al., 2000; Krause et al., 2001; Ishibashi et al., 2000). Although SSSEPs reflect activity across the whole scalp, EEG (Pang & Mueller, 2015; Arslanova et al., 2022) and MEG (Ishibashi et al., 2000; Hoechstetter et al., 2001; Tame et al., 2015) studies also support overlapping finger representations in SI. Notably, the overlap between adjacent fingers is greater than between non-adjacent ones, indicating that suppression between fingers depends on their spatial proximity. Additionally, hand posture plays a significant role in signal summation and suppression. For instance, a study (Hamada & Suzuki, 2003) found that a "CLOSE" posture (thumb and index finger positioned as if to pick something up) produces stronger suppression than an "OPEN" posture (hand fully open).  In the present study, finger posture and inter-finger distance were controlled by placing the fingertips in a fixed position on solenoids, suggesting that the amount of suppression may vary depending on finger arrangements or hand posture. Furthermore, studies have shown that blind individuals exhibit stronger somatosensory evoked potentials compared to sighted individuals, potentially indicating an expanded S1 region (Giriyappa et al., 2009; Burton et al., 2004). This suggests that use-dependent cortical reorganisation may occur across different body regions, and the amount of suppression may vary depending on the body part involved.
+
+
+# References
+
+
