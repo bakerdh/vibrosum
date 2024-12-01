@@ -20,7 +20,6 @@ RUN pip3 install scipy --target /usr/lib/python3.10
 RUN pip3 install matplotlib --target /usr/lib/python3.10
 RUN pip3 install pandas --target /usr/lib/python3.10
 RUN pip3 install mne --target /usr/lib/python3.10
-RUN pip3 install psignifit --target /usr/lib/python3.10
 RUN pip3 install pingouin --target /usr/lib/python3.10
 RUN pip3 install statsmodels --target /usr/lib/python3.10
 
@@ -29,5 +28,3 @@ RUN install2.r –error \
 quarto \
 reticulate \
 osfr
-
-RUN R 'reticulate::use_python("/usr/bin/python3.10")'

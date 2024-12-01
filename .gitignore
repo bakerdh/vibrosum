@@ -13,3 +13,4 @@ env/
 .wget-hsts
 .local/
 bin/
+.sh_history

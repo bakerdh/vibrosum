@@ -19,7 +19,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 0
+doanalysis <- 1
 fitmodels <- 0
 plotfigures <- 0
 
@@ -32,6 +32,9 @@ toinstall <- packagelist[which(!packagelist %in% (.packages()))]
 invisible(lapply(toinstall,library,character.only=TRUE))
 
 if (!is_tinytex()){install_tinytex(force=FALSE)}
+
+use_python("/usr/bin/python3.10")
+py_install('https://github.com/wichmann-lab/python-psignifit/zipball/master')
 
 ```
 
@@ -633,12 +636,12 @@ if r.plotfigures:
 ```{python fitdippers}
 
 if r.fitmodels:
-    fitpath = "local/fits1/"
+    fitpath = "/content/fits1/"
     
     if not os.path.exists(fitpath):
         os.makedirs(fitpath)
     
-    data = np.load('local/allthresh.npz')
+    data = np.load('/content/drive/MyDrive/allthresh.npz')
     allthresh= data['allthresh']
     meanthresh=np.mean(allthresh, axis=0)
     SEthresh = np.std(allthresh, axis=0, ddof=1) / np.sqrt(8)
@@ -733,6 +736,8 @@ if r.fitmodels:
     
         return rms
     
+    
+    
     #%% fit linear summation model
     
     allp = None
@@ -750,6 +755,7 @@ if r.fitmodels:
             print("Optimization successfully", sout.x)
             allout = np.concatenate(([errorfit(sout.x)], sout.x, [0]))
     
+    
             filecount = 1
             while True:
                 filepath = f"{fitpath}M1f{filecount}.npz"
@@ -761,6 +767,8 @@ if r.fitmodels:
         else:
             raise ValueError("Optimization failed")
     
+    
+    
     allparams = np.zeros((ntotalsimplexfits, 9))
     
     nfits = ntotalsimplexfits
@@ -768,10 +776,13 @@ if r.fitmodels:
         if os.path.exists(os.path.join(fitpath, f'M1f{n}.npz')):
             nfits -= 1
     
+    
     if nfits > 0:
         for i in range(nfits):
             result = runfitting()
             allparams[i] = result  # Store each result in the allparams array
+    
+    
     
     
     ####################################
@@ -811,40 +822,18 @@ if r.fitmodels:
         for pedlev in range(len(pedlist)):
             allpred[cond-1, pedlev] = discriminate(allp, pedlevelsC[pedlev], cond)
     
+    
     allpreddB = 20 * np.log10(allpred)
     
-    condition = [ 'Pentadactyl', 'Dekadactyl', 'Half-Dekadactyl', 'Dichodactyl']
-    collist = ['red', 'blue', 'orange', 'darkgreen']
-    
-    #%% plot fitting result
-    plt.figure(figsize=(20, 6))
-    plt.subplot(1, 2, 1)
-    
-    for cond in range(4):
-        plt.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker='o', label=condition[cond])
-        plt.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='o', color=collist[cond])
-        plt.plot(pedlist,allpreddB[cond], color=collist[cond], lw=2 )
-    
-    plt.xlabel('Pedestal contrast (%)',fontsize=20 )
-    plt.ylabel('Threshold (%)', fontsize=20)
-    plt.title('Linear summation model', fontsize=20)
-    plt.xlim(-12,31)
-    plt.ylim(-12,31)
-    plt.yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 15)
-    plt.xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 15  )
-    plt.legend(loc=2, prop={'size': 15})
-    leg = plt.legend()
-    leg.get_frame().set_edgecolor('black')
-    for text in leg.get_texts():
-        text.set_fontsize(13)
-    
-    plt.plot([-12, 30], [-12, 30], linestyle="--")
+    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB.npy', allpreddB )
+    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/model1Param.npy', model1params )
     
     model1rms=round(model1rms,2)
     print(model1rms)
     print(model1params)
     
-    ################################ fit Minkowski summation model
+    #%%################################ fit Minkowski summation model
+    
     allp2 = None
     allrms2 = None
     
@@ -875,6 +864,8 @@ if r.fitmodels:
         else:
             raise ValueError("Optimization failed")
     
+    
+    
     allparams2 = np.zeros((ntotalsimplexfits, 9))
     
     nfits = ntotalsimplexfits
@@ -882,10 +873,12 @@ if r.fitmodels:
         if os.path.exists(os.path.join(fitpath, f'M2f{n}.npz')):
             nfits -= 1
     
+    
     if nfits > 0:
         for i in range(nfits):
             result2 = runfitting2()
             allparams2[i] = result2  # Store each result in the allparams array
+    
     
     finalout2 = np.zeros((ntotalsimplexfits, 9))
     for n in range(1, ntotalsimplexfits + 1):
@@ -895,6 +888,7 @@ if r.fitmodels:
             allout = data['allout']
     
             finalout2[n - 1, :] = allout
+    
     
     i = np.argmin(finalout2[:, 0])  #Finds the row index i of the minimum value in the first column of finalout
     p = 10 ** finalout2[i, 1:9]  #take the corresponding parameters
@@ -912,7 +906,6 @@ if r.fitmodels:
     model2params = allp2
     model2rms = allrms2
     
-    #%% plot fitting result
     pedlist = np.arange(-12, 40)
     pedlevelsC = 10 ** (pedlist / 20)
     pedlevelsC[0] = 0
@@ -926,30 +919,8 @@ if r.fitmodels:
     
     allpreddB2 = 20 * np.log10(allpred2)
     
-    plt.figure(figsize=(20, 6))
-    plt.subplot(1, 2, 2)
-    for cond in range(4):
-        plt.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker='o', label=condition[cond])
-        plt.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='o', color=collist[cond])
-        plt.plot(pedlist,allpreddB2[cond], color=collist[cond], lw=2 )
-    
-    plt.xlabel('Pedestal contrast (%)',fontsize=20 )
-    plt.ylabel('Threshold (%)', fontsize=20)
-    plt.title('Minkowski summation model', fontsize=20)
-    plt.xlim(-12,31)
-    plt.ylim(-12,31)
-    plt.yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 15)
-    plt.xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 15  )
-    plt.legend(loc=2, prop={'size': 15})
-    leg = plt.legend()
-    leg.get_frame().set_edgecolor('black')
-    for text in leg.get_texts():
-        text.set_fontsize(13)
-    
-    plt.plot([-12, 30], [-12, 30], linestyle="--")
-    
-    plt.subplots_adjust(wspace=0.8)
-    plt.savefig('Figures/dipperfit.pdf')
+    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB2.npy', allpreddB2 )
+    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/model2Param.npy', model2params )
     
     model2rms=round(model2rms,2)
     print(model2rms)
@@ -960,23 +931,21 @@ if r.fitmodels:
 ```{python fitEEG}
 
 if r.fitmodels:
-    ntotalsimplexfits = 10
-    
-    fitpath = "local/fits2/"
+    fitpath = "/content/content/fits2/"
     if not os.path.exists(fitpath):
         os.makedirs(fitpath)
     
-    EEGF1 = np.load("local/allF1.npy")   # 30*6*5
-    meanF1 = np.mean(EEGF1, axis=0)  #6*5
+    EEGF1 =np.load("/content/drive/MyDrive/Shasha_EEG/allF1.npy")   # 30*6*5
+    meanF1=np.mean(EEGF1 , axis=0)  #6*5
     n = meanF1.shape[0]
     stdF1 = np.std(EEGF1, axis=0, ddof=1)
-    SEF1 = stdF1 / np.sqrt(n)  #6*5
+    SEF1 = stdF1/ np.sqrt(n)  #6*5
     
-    EEGF2 = np.load("local/allF2.npy")   # 30*6*5
-    meanF2 = np.mean(EEGF2, axis=0)  #6*5
+    EEGF2 =np.load("/content/drive/MyDrive/Shasha_EEG/allF2.npy")   # 30*6*5
+    meanF2=np.mean(EEGF2 , axis=0)  #6*5
     n = meanF2.shape[0]
     stdF2 = np.std(EEGF2, axis=0, ddof=1)
-    SEF2 = stdF2 / np.sqrt(n)
+    SEF2 = stdF2/ np.sqrt(n)
     
     mean = np.concatenate((meanF1, meanF2) , axis=0)  #12*5 , mean data of 26 and 23Hz
     SE = np.concatenate((SEF1, SEF2) , axis=0)  #12*5
@@ -984,11 +953,14 @@ if r.fitmodels:
     def get_twoStage_model1(A, B, C, D, p):  # [A, B]= 26Hz, [C, D]= 23Hz
     
         p = np.power(10, p)
+    
         respAL = (A ** p[0]) / (p[2] + A + p[3] * B + p[3] * D)
         respAR = (B ** p[0]) / (p[2] + B + p[3] * A + p[3] * C)
         bsA = p[4]*(respAL + respAR)
         respA = bsA + p[1]
+    
         return respA
+    
     
     def get_twoStage_model2(A, B, C, D, p):  # [A, B]= 26Hz, [C, D]= 23Hz
         p = np.power(10, p)
@@ -1007,17 +979,17 @@ if r.fitmodels:
     
         responses = np.array([
             # 26 Hz
-            get_twoStage_model1(contrastsC, 0, 0, 0, p ),  # Pentadactyl_resp
+            get_twoStage_model1(contrastsC, 0, 0, 0, p ),  # Pentedactyl_resp
             get_twoStage_model1(contrastsC, contrastsC, 0, 0, p),  # Dekadactyl_resp
             get_twoStage_model1(contrastsC, contrastsC[3], 0, 0, p),  # Dichodactyl_resp
-            get_twoStage_model1(0, 0, contrastsC, 0, p),  # crossPentadactyl_resp
+            get_twoStage_model1(0, 0, contrastsC, 0, p),  # crossPentedactyl_resp
             get_twoStage_model1(contrastsC, 0, 0, contrastsC, p),  # crossDekadactyl_resp
             get_twoStage_model1(contrastsC, 0, 0, contrastsC[3],  p),  # crossDichodactyl_resp
             ## 23 Hz
-            get_twoStage_model2(contrastsC, 0, 0, 0, p ),  # Pentadactyl_resp
+            get_twoStage_model2(contrastsC, 0, 0, 0, p ),  # Pentedactyl_resp
             get_twoStage_model2(contrastsC, contrastsC, 0, 0, p),  # Dekadactyl_resp
             get_twoStage_model2(contrastsC, contrastsC[3], 0, 0, p),  # Dichodactyl_resp
-            get_twoStage_model2(0, 0, contrastsC, 0, p),  # crossPentadactyl_resp
+            get_twoStage_model2(0, 0, contrastsC, 0, p),  # crossPentedactyl_resp
             get_twoStage_model2(contrastsC, 0, 0, contrastsC, p),  # crossDekadactyl_resp
             get_twoStage_model2(contrastsC, 0, 0, contrastsC[3],  p),  # crossDichodactyl_resp
     
@@ -1025,57 +997,72 @@ if r.fitmodels:
     
         return responses   #12*5
     
+    
+    
+    
     def geterror(p):
         modelpredictions = get_twoStage_modelresp(p)   # 6*5
         rms = np.sqrt(np.mean((modelpredictions - mean )**2))
+    
         return rms
+    
     
     allp = None
     allrms = None
+    ntotalsimplexfits = 100
+    nfits = ntotalsimplexfits
+    
     
     def runfitting():
         initial_params = [1.5, 0.05, 20, 0.5, 0.2]+ 0.01 * np.random.randn(5)
+    
         sout = minimize(geterror, np.log10(initial_params),  method='Nelder-Mead', tol= 1e-10)
-        allout = np.concatenate(([geterror(sout.x)], sout.x))
-        return allout
-      
-        # if sout.success:
-        #     print("Optimization successful", sout.x)
-        #     allout = np.concatenate(([geterror(sout.x)], sout.x))
-        #     filecount = 1
-        #     while True:
-        #         filepath = f"{fitpath}M1f{filecount}.npz"
-        #         if not os.path.exists(filepath):
-        #             np.savez(filepath, allout=allout)
-        #             break
-        #         filecount += 1
-        #     return allout
-        # else:
-        #     print("Optimization did not converge.")
-        #     #raise ValueError("Optimization failed")
+    
+        if sout.success:
+    
+            print("Optimization successful", sout.x)
+            allout = np.concatenate(([geterror(sout.x)], sout.x))
     
     
-    # nfits = ntotalsimplexfits
-    # for n in range(1, ntotalsimplexfits + 1):
-    #     if os.path.exists(os.path.join(fitpath, f'M1f{n}.npz')):
-    #         nfits -= 1
+            filecount = 1
+            while True:
+                filepath = f"{fitpath}M1f{filecount}.npz"
+                if not os.path.exists(filepath):
+                    np.savez(filepath, allout=allout)
+                    break
+                filecount += 1
+            return allout
+        else:
+    
+            print("Optimization did not converge.")
+            #raise ValueError("Optimization failed")
     
     
     allparams = np.zeros((ntotalsimplexfits, 6))
-    for i in range(ntotalsimplexfits):
-      result = runfitting()
-      print(result)
-      allparams[i] = result
     
-    finalout = allparams
+    nfits = ntotalsimplexfits
+    for n in range(1, ntotalsimplexfits + 1):
+        if os.path.exists(os.path.join(fitpath, f'M1f{n}.npz')):
+            nfits -= 1
     
-    # finalout = np.zeros((ntotalsimplexfits, 6))
-    # for n in range(1, ntotalsimplexfits + 1):
-    #     filepath = f"{fitpath}M1f{n}.npz"
-    #     if os.path.exists(filepath):
-    #         data = np.load(filepath)
-    #         allout = data['allout']
-    #         finalout[n - 1, :] = allout
+    
+    if nfits > 0:
+        for i in range(nfits):
+            result = runfitting()
+            allparams[i] = result
+    
+    
+    
+    finalout = np.zeros((ntotalsimplexfits, 6))
+    for n in range(1, ntotalsimplexfits + 1):
+        filepath = f"{fitpath}M1f{n}.npz"
+        if os.path.exists(filepath):
+            data = np.load(filepath)
+            allout = data['allout']
+    
+            finalout[n - 1, :] = allout
+    
+    
     
     i = np.argmin(finalout[:, 0])
     p = finalout[i, 1:6]
@@ -1093,53 +1080,149 @@ if r.fitmodels:
     modelRMS=round(modelRMS,2)
     print("model 1 rms:", modelRMS)
     
-     ### Generate prediction responses  #12*5
+    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/EEG_allresp.npy', allresp )
+    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/EEG_modelparams.npy', modelparams )
     
-    contrastsdB=np.arange(12,37,6)
+
+```
+
+```{python plotmodelling}
+
+if plotfigures:
+    fig=plt.figure(figsize=(20,15))
+    ax1=fig.add_subplot(2,2,1)
+    ax2=fig.add_subplot(2,2,2)
+    ax3=fig.add_subplot(2,2,3)
+    ax4=fig.add_subplot(2,2,4)
+    
+    pos = ax2.get_position()
+    new_pos = [pos.x0 + 0.08, pos.y0, pos.width, pos.height] ###adjust position
+    ax2.set_position(new_pos)
+    
+    
+    pos = ax3.get_position()
+    new_pos = [pos.x0, pos.y0-0.05, pos.width, pos.height]
+    ax3.set_position(new_pos)
+    
+    pos = ax4.get_position()
+    new_pos = [pos.x0 + 0.08, pos.y0-0.05, pos.width, pos.height]
+    ax4.set_position(new_pos)
+    
+    
+    axes = [ax1, ax2, ax3, ax4]
+    line_weight = 2
+    for ax in axes:
+        for spine in ax.spines.values():
+            spine.set_linewidth(line_weight)
+    
+    
+    
+    ax1.text(0.05, 0.870, 'A', fontsize=40,  transform=fig.transFigure, fontweight='bold')
+    ax2.text(0.55, 0.870, 'B', fontsize=40,  transform=fig.transFigure, fontweight='bold')
+    ax3.text(0.05, 0.400, 'C', fontsize=40,  transform=fig.transFigure, fontweight='bold')
+    ax4.text(0.55, 0.400, 'D', fontsize=40,  transform=fig.transFigure, fontweight='bold')
+    
+    
+    #%% Plot fitting result of psychophysical data
+    condition = [ 'Pentadactyl', 'Dekadactyl', 'Half-Dekadactyl', 'Dichodactyl']
+    collist = [ 'blue', 'red', 'orange', 'darkgreen']
+    markers=['o','s','D','^']
+    
+    allpreddB= np.load('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB.npy')
+    
+    for cond, marker in zip(range(4) , markers):
+        ax1.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
+        ax1.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='none', color=collist[cond])
+        ax1.plot(pedlist,allpreddB[cond], color=collist[cond], lw=2)
+    
+    ax1.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax1.set_ylabel('Threshold (%)', fontsize=30)
+    ax1.set_title('Linear summation model', fontsize=30)
+    ax1.set_xlim(-12,31)
+    ax1.set_ylim(-12,31)
+    ax1.set_yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)
+    ax1.set_xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 25  )
+    
+    ax1. plot([-12, 30], [-12, 30], linestyle="--")
+    
+    
+    allpreddB2= np.load('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB2.npy')
+    legend_elements2 = []
+    for cond, marker in zip(range(4) , markers):
+        ax2.scatter(pedcontrasts,meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
+        ax2.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='none', color=collist[cond])
+        ax2.plot(pedlist,allpreddB2[cond], color=collist[cond], lw=2 )
+        legend_elements2.append(Line2D([0], [0], color=collist[cond], linestyle='-', label=condition[cond],  markersize=12,  marker=marker))
+    ax2.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax2.set_ylabel('Threshold (%)', fontsize=30)
+    ax2.set_title('Minkowski summation model', fontsize=30)
+    ax2.set_xlim(-12,31)
+    ax2.set_ylim(-12,31)
+    ax2.set_yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)
+    ax2.set_xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 25  )
+    leg2 = ax2.legend(
+        handles=legend_elements2,
+        loc='upper left',
+        bbox_to_anchor=(0.01, 1),
+        fontsize=20,
+        frameon=False
+    )
+    
+    ax2.plot([-12, 30], [-12, 30], linestyle="--")
+    
+    
+    
+    #%% Plot fitting result of EEG data
+    contrastsdB=np.arange(12,37,6 )
     contrastsC = 10**(contrastsdB / 20)
     contrastsC[0] = 0
     
     conditions = ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl', 'Cross-Dekadactyl', 'Cross-Dichodactyl', 'Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl', 'Cross-Dekadactyl', 'Cross-Dichodactyl']
+    collist = ['b', 'r', 'g','y','m', 'k', 'b', 'r', 'g','y','m', 'k']
     
-    legend_elements = []
-    linestyles = ['b--', 'r--', 'g--', 'y--', 'm--', 'k--', 'b--', 'r--', 'g--', 'y--', 'm--', 'k--']
-    markerfacecolor = ['b','r', 'g', 'y','m', 'k', 'b','r', 'g', 'y','m', 'k']
-    markers = ['o', 's', '^', 'o', 's', '^', 'o', 's', '^', 'o', 's', '^']
     
-    # Plot fitting result of 26 Hz
-    for i, linestyle, marker in zip(range(6), linestyles, markers):   # First 6 raws represent data at 26Hz
-        plt.scatter(contrastsdB, mean[i,:], marker=markers[i], facecolors=markerfacecolor[i])
-        plt.errorbar(contrastsdB, mean[i,:], yerr=SE[i,:], fmt='o',  color=markerfacecolor[i])
-        plt.plot(contrastsdB, allresp[i], linestyle, label=conditions[i])
-        legend_elements.append(Line2D([0], [0], color=linestyle[0], linestyle=linestyle[1:], marker=markers[i], label=conditions[i]))
+    markers = ['o', 's', '^', '<', 'p', 'd' , 'o', 's', '^', '<', 'p', 'd']
     
-    plt.title("26 Hz", fontsize = 20)
-    plt.xlabel('Intensity level (%)',fontsize = 20)
-    plt.xticks(contrastsdB,[0, 8, 16, 32, 64],fontsize = 15)
-    plt.yticks(fontsize = 15)
-    plt.ylabel('Model response',fontsize = 20)
-    plt.legend(handles=legend_elements, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-    plt.savefig('Figures/EEGfitA.pdf')
+    allresp = np.load('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/EEG_allresp.npy')
     
-    # Plot fitting result of 23 Hz
-    legend_elements = []
-    for i, linestyle, marker in zip(range(6,12), linestyles, markers):     # Last 6 raws represent data at 23Hz
-        plt.scatter(contrastsdB, mean[i,:], marker=markers[i], facecolors=markerfacecolor[i-6])
-        plt.errorbar(contrastsdB, mean[i,:], yerr=SE[i,:], fmt='o',  color=markerfacecolor[i-6])
-        plt.plot(contrastsdB, allresp[i], linestyle, label=conditions[i-6])
-        legend_elements.append(Line2D([0], [0], color=linestyle[0], linestyle=linestyle[1:], marker=markers[i], label=conditions[i-6]))
+    def plotOnefig(ax, data_rows, title, conditions, contrastsdB):
+        legend_elements = []
+        for i in data_rows:
+            idx = i % len(markers)
     
-    plt.title("23 Hz", fontsize = 20)
-    plt.xlabel('Intensity level (%)',fontsize = 20)
-    plt.xticks(contrastsdB,[0, 8, 16, 32, 64],fontsize = 15 )
-    plt.yticks(fontsize = 15 )
-    plt.ylabel('Model response',fontsize = 20)
-    plt.legend(handles=legend_elements, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-    plt.savefig('Figures/EEGfitB.pdf')
+            ax.scatter(contrastsdB, mean[i, :], marker=markers[idx],color=collist[idx], s=70)
+            ax.errorbar(contrastsdB, mean[i, :], yerr=SE[i, :], fmt='none', color=collist[idx])
+            ax.plot(contrastsdB, allresp[i, :], color=collist[idx], lw=2)
+            legend_elements.append(Line2D([0], [0], marker=markers[idx], color=collist[idx], linestyle='-', label=conditions[i - data_rows.start], markersize=12))
+    
+        ax.set_title(title, fontsize=30)
+        ax.set_xlabel('Intensity level (%)', fontsize=30)
+        ax.set_ylabel('Model response', fontsize=30)
+        ax.set_xticks(contrastsdB)
+        ax.set_xticklabels(['0', '8', '16', '32', '64'], fontsize=25)
+        ax.set_yticks([0, 0.1,0.2,0.3,0.4,0.5], [0, 0.1,0.2,0.3,0.4,0.5], fontsize = 25  )
+        return legend_elements
+    
+    # Plot 26 Hz
+    plotOnefig(ax3, range(6), "26 Hz", conditions[:6], contrastsdB)
+    
+    # Plot 23 Hz
+    legend_elements4 = plotOnefig(ax4, range(6,12), "23 Hz", conditions[6:], contrastsdB)
+    
+    # Add legend to ax4
+    leg4 = ax4.legend(
+        handles=legend_elements4,
+        loc='upper left',
+        bbox_to_anchor=(0.005, 1),
+        ncol=2,
+        fontsize=20,
+        frameon=False
+    )
+    
+    
+    plt.show()
 
 ```
-
-
 
 # Abstract
 
