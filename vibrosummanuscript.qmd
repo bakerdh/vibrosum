@@ -33,8 +33,6 @@ invisible(lapply(toinstall,library,character.only=TRUE))
 
 if (!is_tinytex()){install_tinytex(force=FALSE)}
 
-use_python("/usr/bin/python3.10")
-
 ```
 
 ```{python setup}
