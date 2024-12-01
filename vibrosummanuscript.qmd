@@ -75,7 +75,7 @@ osfproject <- osf_retrieve_node('m79d2')
 osffiles <- osf_ls_files(osfproject,n_max=300)
 if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$name=='8subjects.csv'),],'local/',progress=TRUE)}
 
-if (!dir.exists('local')){dir.create('local/rawEEGdata/')}
+if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')}
 osfproject <- osf_retrieve_node('z2fcm')
 osffiles <- osf_ls_files(osfproject,n_max=300)
 for (s in 1:31){
