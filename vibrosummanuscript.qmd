@@ -19,8 +19,8 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 1
-fitmodels <- 0
+doanalysis <- 0
+fitmodels <- 1
 plotfigures <- 1
 
 # install R packages
@@ -62,7 +62,6 @@ from pingouin import pairwise_ttests
 # from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 ```
-
 
 ```{r checkfordata}
 
@@ -383,9 +382,15 @@ if r.doanalysis:
 
 ```{python plotEEGdata}
 #| include: false
-
+r.plotfigures=0
 if r.plotfigures:
-    np.load('local/processedEEGdata.npz')
+    eegdata = np.load('local/processedEEGdata.npz')
+    allsubjsF1 = eegdata['allsubjsF1']
+    allsubjsF2 = eegdata['allsubjsF2']
+    selectSpec = eegdata['selectSpec']
+    
+    levellist = ["C1","C2","C3","C4","C5"]
+    condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
     
     # Row data for plotting spectra
     Deka_spec = np.mean(selectSpec [:, :, 1, 4,:], axis=1)   #### average across 6 electrodes
@@ -416,8 +421,8 @@ if r.plotfigures:
     
     ##### Remove one outlier, the rest of 30 individual data are used to calculate mean amplitude across conditions, levels
     
-    subjsF1 = np.zeros((31, 61, len(condlist), len(levellist)))
-    subjsF2 = np.zeros((31, 61, len(condlist), len(levellist)))
+    subjsF1 = np.zeros((31, 61, len(condlist), len(levellist)))*np.nan
+    subjsF2 = np.zeros((31, 61, len(condlist), len(levellist)))*np.nan
     
     for el in range(61):
         for cond in range(6):
@@ -428,11 +433,11 @@ if r.plotfigures:
                 s = np.std(temp)
                 m = np.mean(temp)
                 filtered_indices = np.where(np.abs(temp - m) < (3 * s))[0]
-                for subj in range(31):
-                    if subj < len(filtered_indices):
-                        subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
-                    else:
-                        subjsF1[subj, el, cond, lev] = np.nan
+                for subj in range(len(filtered_indices)):
+                    # if (subj < len(filtered_indices)):
+                    subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
+                    # else:
+                    #     subjsF1[subj, el, cond, lev] = np.nan
     
                 # F2 data
                 temp = np.abs(allsubjsF2[:, el, cond, lev])
@@ -440,11 +445,11 @@ if r.plotfigures:
                 s = np.std(temp)
                 m = np.mean(temp)
                 filtered_index = np.where(np.abs(temp - m) < (3 * s))[0]
-                for subj in range(31):
-                    if subj < len(filtered_index):
-                        subjsF2[subj, el, cond, lev] = temp[filtered_index[subj]]
-                    else:
-                        subjsF2[subj, el, cond, lev] = np.nan
+                for subj in range(len(filtered_index)):
+                    # if subj < len(filtered_index):
+                    subjsF2[subj, el, cond, lev] = temp[filtered_index[subj]]
+                    # else:
+                        # subjsF2[subj, el, cond, lev] = np.nan
     
     ######################## filtered  F1, F2   contrast response data
     #########################  F1
@@ -635,12 +640,12 @@ if r.plotfigures:
 ```{python fitdippers}
 
 if r.fitmodels:
-    fitpath = "/content/fits1/"
+    fitpath = "local/fits1/"
     
     if not os.path.exists(fitpath):
         os.makedirs(fitpath)
     
-    data = np.load('/content/drive/MyDrive/allthresh.npz')
+    data = np.load('local/allthresh.npz')
     allthresh= data['allthresh']
     meanthresh=np.mean(allthresh, axis=0)
     SEthresh = np.std(allthresh, axis=0, ddof=1) / np.sqrt(8)
@@ -824,8 +829,8 @@ if r.fitmodels:
     
     allpreddB = 20 * np.log10(allpred)
     
-    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB.npy', allpreddB )
-    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/model1Param.npy', model1params )
+    np.save('local/allpreddB.npy', allpreddB )
+    np.save('local/model1Param.npy', model1params )
     
     model1rms=round(model1rms,2)
     print(model1rms)
@@ -918,8 +923,8 @@ if r.fitmodels:
     
     allpreddB2 = 20 * np.log10(allpred2)
     
-    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB2.npy', allpreddB2 )
-    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/model2Param.npy', model2params )
+    np.save('local/allpreddB2.npy', allpreddB2 )
+    np.save('local/model2Param.npy', model2params )
     
     model2rms=round(model2rms,2)
     print(model2rms)
@@ -930,17 +935,17 @@ if r.fitmodels:
 ```{python fitEEG}
 
 if r.fitmodels:
-    fitpath = "/content/content/fits2/"
+    fitpath = "local/fits2/"
     if not os.path.exists(fitpath):
         os.makedirs(fitpath)
     
-    EEGF1 =np.load("/content/drive/MyDrive/Shasha_EEG/allF1.npy")   # 30*6*5
+    EEGF1 =np.load("local/allF1.npy")   # 30*6*5
     meanF1=np.mean(EEGF1 , axis=0)  #6*5
     n = meanF1.shape[0]
     stdF1 = np.std(EEGF1, axis=0, ddof=1)
     SEF1 = stdF1/ np.sqrt(n)  #6*5
     
-    EEGF2 =np.load("/content/drive/MyDrive/Shasha_EEG/allF2.npy")   # 30*6*5
+    EEGF2 =np.load("local/allF2.npy")   # 30*6*5
     meanF2=np.mean(EEGF2 , axis=0)  #6*5
     n = meanF2.shape[0]
     stdF2 = np.std(EEGF2, axis=0, ddof=1)
@@ -1079,15 +1084,15 @@ if r.fitmodels:
     modelRMS=round(modelRMS,2)
     print("model 1 rms:", modelRMS)
     
-    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/EEG_allresp.npy', allresp )
-    np.save('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/EEG_modelparams.npy', modelparams )
+    np.save('local/EEG_allresp.npy', allresp )
+    np.save('local/EEG_modelparams.npy', modelparams )
     
 
 ```
 
 ```{python plotmodelling}
-plotfigures = 0
-if plotfigures:
+r.plotfigures = 1
+if r.plotfigures:
     fig=plt.figure(figsize=(20,15))
     ax1=fig.add_subplot(2,2,1)
     ax2=fig.add_subplot(2,2,2)
@@ -1127,7 +1132,7 @@ if plotfigures:
     collist = [ 'blue', 'red', 'orange', 'darkgreen']
     markers=['o','s','D','^']
     
-    allpreddB= np.load('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB.npy')
+    allpreddB= np.load('local/allpreddB.npy')
     
     for cond, marker in zip(range(4) , markers):
         ax1.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
@@ -1145,7 +1150,7 @@ if plotfigures:
     ax1. plot([-12, 30], [-12, 30], linestyle="--")
     
     
-    allpreddB2= np.load('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/allpreddB2.npy')
+    allpreddB2= np.load('local/allpreddB2.npy')
     legend_elements2 = []
     for cond, marker in zip(range(4) , markers):
         ax2.scatter(pedcontrasts,meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
@@ -1182,7 +1187,7 @@ if plotfigures:
     
     markers = ['o', 's', '^', '<', 'p', 'd' , 'o', 's', '^', '<', 'p', 'd']
     
-    allresp = np.load('C:/Users/mfv507/OneDrive - University of York/Documents/Py_Scripts/EEG_allresp.npy')
+    allresp = np.load('local/EEG_allresp.npy')
     
     def plotOnefig(ax, data_rows, title, conditions, contrastsdB):
         legend_elements = []
@@ -1219,7 +1224,7 @@ if plotfigures:
     )
     
     
-    plt.show()
+    plt.savefig('Figures/models.pdf')
 
 ```
 

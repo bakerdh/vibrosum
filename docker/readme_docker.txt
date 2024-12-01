@@ -20,12 +20,12 @@ docker build -t ssep_illusory_resizing -f docker/Dockerfile .
 
 4. Once the image has finished building, launch a container in Docker desktop by clicking the play icon
 
-5. Call the container something sensible (i.e. resizing), set the host port to 8787, and add an Environment variable called PASSWORD with the value: pass
+5. Call the container something sensible (i.e. vibrosum), set the host port to 8787, and add an Environment variable called PASSWORD with the value: pass
 
 6. The container should then appear in the Containers section of Docker desktop, and can be accessed by clicking on the port number (8787:8787), which will launch it in your web browser. Once the container launches, you can login to the RStudio instance with username: rstudio, password: pass
 
 7. Click on the Terminal tab in the RStudio window and enter:
-git clone https://github.com/KJHansford/SSEP_illusory_resizing.git
-This will download the repository to a folder called SSEP_illusory_resizing
+git clone https://github.com/bakerdh/vibrosum.git
+This will download the repository to a folder called vibrosum
 
 8. You can then open the project and the quarto file, and run the code
