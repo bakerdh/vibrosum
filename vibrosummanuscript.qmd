@@ -33,7 +33,11 @@ invisible(lapply(toinstall,library,character.only=TRUE))
 
 # if (!is_tinytex()){install_tinytex(force=FALSE)}
 
-use_python("/usr/bin/python3.10")
+install_python(version='3.6')
+virtualenv_create('pfitenv',version="3.6")
+py_install('https://github.com/wichmann-lab/python-psignifit/zipball/master')
+
+# use_python("/usr/bin/python3.6")
 
 ```
 
