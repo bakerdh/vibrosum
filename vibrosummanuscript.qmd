@@ -20,8 +20,8 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 #| include: false
 
 doanalysis <- 1
-fitmodels <- 0
-plotfigures <- 0
+fitmodels <- 1
+plotfigures <- 1
 
 # install R packages
 packagelist <- c('knitr','reticulate','osfr','tinytex')
@@ -30,20 +30,6 @@ missingpackages <- packagelist[!packagelist %in% installed.packages()[,1]]
 if (length(missingpackages)>0){install.packages(missingpackages)}
 toinstall <- packagelist[which(!packagelist %in% (.packages()))]
 invisible(lapply(toinstall,library,character.only=TRUE))
-
-# if (!is_tinytex()){install_tinytex(force=FALSE)}
-
-# install_python(version='3.6')
-# virtualenv_create('pfitenv',version="3.6")
-# # py_install('https://github.com/wichmann-lab/python-psignifit/zipball/master')
-# py_install('numpy',pip=TRUE)
-# py_install('scipy',pip=TRUE)
-# py_install('matplotlib',pip=TRUE)
-# py_install('pandas',pip=TRUE)
-# py_install('mne',pip=TRUE)
-# py_install('psignifit',pip=TRUE)
-# py_install('pingouin',pip=TRUE)
-# py_install('statsmodels',pip=TRUE)
 
 use_python("/usr/bin/python3.10")
 
@@ -86,13 +72,13 @@ osfproject <- osf_retrieve_node('m79d2')
 osffiles <- osf_ls_files(osfproject,n_max=300)
 if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$name=='8subjects.csv'),],'local/',progress=TRUE)}
 
-# if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')}
-# osfproject <- osf_retrieve_node('z2fcm')
-# osffiles <- osf_ls_files(osfproject,n_max=300)
-# for (s in 1:31){
-# if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE)}
-# if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE)}
-# }
+if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')}
+osfproject <- osf_retrieve_node('z2fcm')
+osffiles <- osf_ls_files(osfproject,n_max=300)
+for (s in 1:31){
+if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE)}
+if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE)}
+}
 }
 
 if (plotfigures==1){
@@ -276,7 +262,7 @@ if r.plotfigures:
 
 ```{python analyseEEG}
 #| include: false
-r.doanalysis = 0
+
 if r.doanalysis:
     raw_path = "local/rawEEGdata/"   #load data, you can download raw data from 
     nsubjs = 31
@@ -394,7 +380,7 @@ if r.doanalysis:
 
 ```{python plotEEGdata}
 #| include: false
-r.plotfigures=0
+
 if r.plotfigures:
     eegdata = np.load('local/processedEEGdata.npz')
     allsubjsF1 = eegdata['allsubjsF1']
@@ -1103,7 +1089,7 @@ if r.fitmodels:
 ```
 
 ```{python plotmodelling}
-r.plotfigures = 1
+
 if r.plotfigures:
     fig=plt.figure(figsize=(20,15))
     ax1=fig.add_subplot(2,2,1)

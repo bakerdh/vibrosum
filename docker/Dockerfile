@@ -29,5 +29,3 @@ RUN install2.r –error \
 quarto \
 reticulate \
 osfr
-
-#RUN R 'reticulate::use_python("/usr/bin/python3.10")'
