@@ -165,8 +165,8 @@ if r.doanalysis:
                         
                         result_fit = ps.psignifit(tofit, experiment_type='2AFC')
                         # result_params = result_fit.get_parameters_estimate()
-                        allthresh[i, cond - 1, pedlevel] = result.parameter_estimate['threshold']
-                        allslope[i, cond - 1, pedlevel] = 10.3 / (result.parameter_estimate['width'] / (norm.ppf(1 - 0.05) - norm.ppf(0.05)))
+                        allthresh[i, cond - 1, pedlevel] = result_fit.parameter_estimate['threshold']
+                        allslope[i, cond - 1, pedlevel] = 10.3 / (result_fit.parameter_estimate['width'] / (norm.ppf(1 - 0.05) - norm.ppf(0.05)))
     
     #print("Thresholds:", allthresh)
     #print("Slopes:", allslope)
