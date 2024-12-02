@@ -19,7 +19,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 1
+doanalysis <- 0
 fitmodels <- 1
 plotfigures <- 1
 
@@ -266,13 +266,13 @@ if r.plotfigures:
 #| include: false
 
 if r.doanalysis:
-    raw_path = "local/rawEEGdata/"   #load data, you can download raw data from 
+    raw_path = "local/rawEEGdata/"   # path containing raw data 
     nsubjs = 31
     allsubjsF1 = np.zeros((nsubjs,61,6,5), dtype=complex)
     allsubjsF2 = np.zeros((nsubjs,61,6,5), dtype=complex)
     selectSpec = np.zeros((nsubjs,6, 6, 5, 10001), dtype=complex)
     
-    # loop through each individual data, calculate the spectra data and amplitude at 6 consitons and 5 intensity levels
+    # loop through each individual participant, calculate the spectra and amplitude for 6 conditions and 5 intensity levels
     for p in range(0,nsubjs):
         filename = raw_path + "P" + str(p+1) + '_EEG.set'
     
@@ -343,14 +343,14 @@ if r.doanalysis:
         allblocksF2 = np.zeros((61,len(condlist),len(levellist)), dtype=complex)
     
         lineColor = ['b', 'r', 'g','y','m', 'k']
-        labels= ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl','Cross-Dekadactyl','Cross-Dichodactyl']
+        labels= ['Pentadactyl','Dekadactyl','Dichodactyl','Cross-Pentadactyl','Cross-Dekadactyl','Cross-Dichodactyl']
         legend_elements = []
         x = [12,18,24,30,36]
     
         spectra = np.zeros((len([4, 8, 9, 34, 35, 38]), len(condlist), len(levellist), 10001))  
         y_26Hz = []
         y_23Hz = []
-        selectE = [4, 8, 9, 34, 35, 38] ##########  select electrdes:F1, F2, FZ, FC1, FC2, FCZ
+        selectE = [4, 8, 9, 34, 35, 38] ##########  select electrodes: F1, F2, FZ, FC1, FC2, FCZ
         for c in range(len(condlist)):
             for l in range(len(levellist)):
                 condstr = str(condlist[c]) + '/' + str(levellist[l])
@@ -363,7 +363,7 @@ if r.doanalysis:
                     # Check if the electrode is in the selected electrodes list
                     if electrode in selectE:
                         idx = selectE.index(electrode)
-                        spectra[idx, c, l, :] = np.abs(spec)  # store all frequencies from 6 electrdes
+                        spectra[idx, c, l, :] = np.abs(spec)  # store all frequencies from 6 electrodes
     
                     allblocksF1[electrode,c,l] = np.abs(spec[260])
                     allblocksF2[electrode,c,l] = np.abs(spec[230])
