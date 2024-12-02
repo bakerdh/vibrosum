@@ -19,9 +19,9 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 0
-fitmodels <- 1
-plotfigures <- 1
+doanalysis <- 1
+fitmodels <- 0
+plotfigures <- 0
 
 # install R packages
 packagelist <- c('knitr','reticulate','osfr','tinytex')
