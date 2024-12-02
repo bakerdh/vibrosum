@@ -75,10 +75,15 @@ if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$na
 if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')}
 osfproject <- osf_retrieve_node('z2fcm')
 osffiles <- osf_ls_files(osfproject,n_max=300)
-for (s in 1:31){
-if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE)}
-if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE)}
+d <- 1
+while (length(d)<62){
+    for (s in 1:31){
+    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+    }
+d <- dir('local/rawEEGdata/')
 }
+
 }
 
 if (plotfigures==1){
