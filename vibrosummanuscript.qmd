@@ -376,7 +376,7 @@ if r.doanalysis:
         allsubjsF1[p,0:61,0:6,0:5] = allblocksF1  ##amplitudes at 26Hz: participant X electrode X condition X level
         allsubjsF2[p,0:61,0:6,0:5] = allblocksF2   ##amplitude form 23Hz: participant X electrode X condition X level
         
-    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1,allsubjsF2=allsubjsF2,selectSpec=selectSpec)
+    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1,allsubjsF2=allsubjsF2,selectSpec=selectSpec,info=info)
 
 ```
 
@@ -388,6 +388,7 @@ if r.plotfigures:
     allsubjsF1 = eegdata['allsubjsF1']
     allsubjsF2 = eegdata['allsubjsF2']
     selectSpec = eegdata['selectSpec']
+    info = eegdata['info']
     
     levellist = ["C1","C2","C3","C4","C5"]
     condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
