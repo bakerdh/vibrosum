@@ -19,7 +19,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 0
+doanalysis <- 1
 fitmodels <- 1
 plotfigures <- 1
 
@@ -67,6 +67,8 @@ from pingouin import pairwise_ttests
 
 if (!dir.exists('local/')){dir.create('local/')}
 
+for (rep in 1:3){   # repeat a few times to check all files downloaded
+
 if (doanalysis==1){
 osfproject <- osf_retrieve_node('m79d2')
 osffiles <- osf_ls_files(osfproject,n_max=300)
@@ -77,8 +79,8 @@ osfproject <- osf_retrieve_node('z2fcm')
 osffiles <- osf_ls_files(osfproject,n_max=300)
 
     for (s in 1:31){
-    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE,conflicts='overwrite')}
-    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE,conflicts='overwrite')}
+    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
     }
 
 }
@@ -92,6 +94,8 @@ if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$na
 if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
 if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
 if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
+
+}
 
 }
 
@@ -376,7 +380,7 @@ if r.doanalysis:
         allsubjsF1[p,0:61,0:6,0:5] = allblocksF1  ##amplitudes at 26Hz: participant X electrode X condition X level
         allsubjsF2[p,0:61,0:6,0:5] = allblocksF2   ##amplitude form 23Hz: participant X electrode X condition X level
         
-    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1,allsubjsF2=allsubjsF2,selectSpec=selectSpec,info=info)
+    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1,allsubjsF2=allsubjsF2,selectSpec=selectSpec,info=info,freqs=freqs)
 
 ```
 
@@ -384,11 +388,12 @@ if r.doanalysis:
 #| include: false
 
 if r.plotfigures:
-    eegdata = np.load('local/processedEEGdata.npz')
+    eegdata = np.load('local/processedEEGdata.npz',allow_pickle=True)
     allsubjsF1 = eegdata['allsubjsF1']
     allsubjsF2 = eegdata['allsubjsF2']
     selectSpec = eegdata['selectSpec']
     info = eegdata['info']
+    freqs = eegdata['freqs']
     
     levellist = ["C1","C2","C3","C4","C5"]
     condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
@@ -422,8 +427,8 @@ if r.plotfigures:
     
     ##### Remove one outlier, the rest of 30 individual data are used to calculate mean amplitude across conditions, levels
     
-    subjsF1 = np.zeros((31, 61, len(condlist), len(levellist)))*np.nan
-    subjsF2 = np.zeros((31, 61, len(condlist), len(levellist)))*np.nan
+    subjsF1 = np.zeros((31, 61, len(condlist), len(levellist)))  #*np.nan
+    subjsF2 = np.zeros((31, 61, len(condlist), len(levellist)))  #*np.nan
     
     for el in range(61):
         for cond in range(6):
@@ -435,10 +440,10 @@ if r.plotfigures:
                 m = np.mean(temp)
                 filtered_indices = np.where(np.abs(temp - m) < (3 * s))[0]
                 for subj in range(len(filtered_indices)):
-                    # if (subj < len(filtered_indices)):
-                    subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
-                    # else:
-                    #     subjsF1[subj, el, cond, lev] = np.nan
+                    if (subj < len(filtered_indices)):
+                      subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
+                    else:
+                      subjsF1[subj, el, cond, lev] = np.nan
     
                 # F2 data
                 temp = np.abs(allsubjsF2[:, el, cond, lev])
@@ -447,10 +452,8 @@ if r.plotfigures:
                 m = np.mean(temp)
                 filtered_index = np.where(np.abs(temp - m) < (3 * s))[0]
                 for subj in range(len(filtered_index)):
-                    # if subj < len(filtered_index):
-                    subjsF2[subj, el, cond, lev] = temp[filtered_index[subj]]
-                    # else:
-                        # subjsF2[subj, el, cond, lev] = np.nan
+                    if (subj < len(filtered_index)): subjsF2[subj, el, cond, lev] = temp[filtered_index[subj]]
+                    else: subjsF2[subj, el, cond, lev] = np.nan
     
     ######################## filtered  F1, F2   contrast response data
     #########################  F1
@@ -464,7 +467,7 @@ if r.plotfigures:
     ###calculate standard error
     n = filtered_dataF1.shape[0]
     stdF1 = np.std(filtered_dataF1 , axis=0, ddof=1)
-    SEF1 = stdF1/ np.sqrt(n)
+    SEF1 = stdF1 / np.sqrt(n)
     
     ############################# F2
     EsubjsF2= subjsF2[:,selectE, :, :]
@@ -530,6 +533,7 @@ if r.plotfigures:
         spectrum = spectr
         psds_mean = spectrum.mean(axis=0)[list(freq_range)]
         psds_std = spectrum.std(axis=0)[list(freq_range)]
+        nsubjs = psds_std.shape[0]
         psds_sr = psds_std / np.sqrt(nsubjs)
         ax.plot(freqs[list(freq_range)] - 1, psds_mean, label=label)
         ax.fill_between(freqs[list(freq_range)] - 1, psds_mean - psds_sr, psds_mean + psds_sr, color="b", alpha=0.2)
