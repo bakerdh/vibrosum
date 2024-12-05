@@ -24,7 +24,7 @@ fitmodels <- 0
 plotfigures <- 1
 
 # install R packages
-packagelist <- c('knitr','reticulate','osfr','tinytex')
+packagelist <- c('utils','knitr','reticulate','osfr','tinytex')
 
 missingpackages <- packagelist[!packagelist %in% installed.packages()[,1]]
 if (length(missingpackages)>0){install.packages(missingpackages)}
@@ -67,43 +67,55 @@ from pingouin import pairwise_ttests
 
 if (!dir.exists('local/')){dir.create('local/')}
 
-for (rep in 1:5){   # repeat a few times to check all files downloaded
+  if (doanalysis==1){
+    osfproject <- osf_retrieve_node('m79d2')
+    osffiles <- osf_ls_files(osfproject,n_max=300)
+    if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$name=='8subjects.csv'),],'local/',progress=TRUE)}
 
-if (doanalysis==1){
-osfproject <- osf_retrieve_node('m79d2')
-osffiles <- osf_ls_files(osfproject,n_max=300)
-if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$name=='8subjects.csv'),],'local/',progress=TRUE)}
+    osfproject <- osf_retrieve_node('z2fcm')
+    osffiles <- osf_ls_files(osfproject,n_max=300)
 
-if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')}
-osfproject <- osf_retrieve_node('z2fcm')
-osffiles <- osf_ls_files(osfproject,n_max=300)
-
-    for (s in 1:31){
-    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
-    if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+    if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')
+     osf_download(osffiles[which(osffiles$name=='setfiles.zip'),],'local/',progress=TRUE,conflicts='skip')
+     unzip('local/setfiles.zip',exdir='local/rawEEGdata/')
+     file.remove('local/setfiles.zip')
+     d <- dir('local/rawEEGdata/setfiles/',full.names=TRUE)
+     file.copy(d,'local/rawEEGdata/')
+     file.remove(d)
+     
+     for (i in 1:4){
+     osf_download(osffiles[which(osffiles$name==paste0('fdt',i,'.zip')),],'local/',progress=TRUE,conflicts='skip')
+     unzip(paste0('local/fdt',i,'.zip'),exdir='local/rawEEGdata/')
+     file.remove(paste0('local/fdt',i,'.zip'))
+     d <- dir(paste0('local/rawEEGdata/fdt',i),full.names=TRUE)
+     file.copy(d,'local/rawEEGdata/')
+     file.remove(d)
+     }
     }
 
-}
-
-if (plotfigures==1){
-osfproject <- osf_retrieve_node('m79d2')
-osffiles <- osf_ls_files(osfproject,n_max=300)
-
-if (!file.exists('local/processedEEGdata.npz')){osf_download(osffiles[which(osffiles$name=='processedEEGdata.npz'),],'local/',progress=TRUE)}
-if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$name=='allthresh.npz'),],'local/',progress=TRUE)}
-if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
-if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/allpreddB.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/allpreddB2.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB2.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/EEG_modelparams.npy')){osf_download(osffiles[which(osffiles$name=='EEG_modelparams.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/EEG_allresp.npy')){osf_download(osffiles[which(osffiles$name=='EEG_allresp.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/model1Param.npy')){osf_download(osffiles[which(osffiles$name=='model1Param.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/model2Param.npy')){osf_download(osffiles[which(osffiles$name=='model2Param.npy'),],'local/',progress=TRUE)}
-
-
-}
-
+    # for (s in 1:31){
+    #   if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+    #   if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+    # }
+    
+  }
+  
+  if ((plotfigures+domodelling)>0){
+    osfproject <- osf_retrieve_node('m79d2')
+    osffiles <- osf_ls_files(osfproject,n_max=300)
+    
+    if (!file.exists('local/processedEEGdata.npz')){osf_download(osffiles[which(osffiles$name=='processedEEGdata.npz'),],'local/',progress=TRUE)}
+    if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$name=='allthresh.npz'),],'local/',progress=TRUE)}
+    if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
+    if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
+    if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
+    if (!file.exists('local/allpreddB.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB.npy'),],'local/',progress=TRUE)}
+    if (!file.exists('local/allpreddB2.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB2.npy'),],'local/',progress=TRUE)}
+    if (!file.exists('local/EEG_modelparams.npy')){osf_download(osffiles[which(osffiles$name=='EEG_modelparams.npy'),],'local/',progress=TRUE)}
+    if (!file.exists('local/EEG_allresp.npy')){osf_download(osffiles[which(osffiles$name=='EEG_allresp.npy'),],'local/',progress=TRUE)}
+    if (!file.exists('local/model1Param.npy')){osf_download(osffiles[which(osffiles$name=='model1Param.npy'),],'local/',progress=TRUE)}
+    if (!file.exists('local/model2Param.npy')){osf_download(osffiles[which(osffiles$name=='model2Param.npy'),],'local/',progress=TRUE)}
+    
 }
 
 ```
