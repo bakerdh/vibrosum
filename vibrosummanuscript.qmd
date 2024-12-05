@@ -94,6 +94,12 @@ if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$na
 if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
 if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
 if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/allpreddB.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/allpreddB2.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB2.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/EEG_modelparams.npy')){osf_download(osffiles[which(osffiles$name=='EEG_modelparams.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/model1Param.npy')){osf_download(osffiles[which(osffiles$name=='model1Param.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/model2Param.npy')){osf_download(osffiles[which(osffiles$name=='model2Param.npy'),],'local/',progress=TRUE)}
+
 
 }
 
