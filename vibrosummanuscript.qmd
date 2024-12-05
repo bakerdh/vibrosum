@@ -20,7 +20,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 #| include: false
 
 doanalysis <- 0
-fitmodels <- 0
+fitmodels <- 1
 plotfigures <- 1
 
 # install R packages
@@ -1339,6 +1339,9 @@ At 23 Hz, we also found significant main effects of condition (F = 146.40, p < 0
 ## Modelling
 
 
+::: {.content-visible unless-format="docx"}
+![Model figure.](Figures/models.pdf){#fig-models}
+:::
 
 # Discussion
 
