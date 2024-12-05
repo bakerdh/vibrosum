@@ -19,8 +19,8 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 0
-fitmodels <- 1
+doanalysis <- 1
+fitmodels <- 0
 plotfigures <- 1
 
 # install R packages
@@ -67,7 +67,7 @@ from pingouin import pairwise_ttests
 
 if (!dir.exists('local/')){dir.create('local/')}
 
-for (rep in 1:3){   # repeat a few times to check all files downloaded
+for (rep in 1:5){   # repeat a few times to check all files downloaded
 
 if (doanalysis==1){
 osfproject <- osf_retrieve_node('m79d2')
