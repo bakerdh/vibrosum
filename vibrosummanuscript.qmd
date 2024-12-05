@@ -100,7 +100,7 @@ if (!dir.exists('local/')){dir.create('local/')}
     
   }
   
-  if ((plotfigures+domodelling)>0){
+  if ((plotfigures+fitmodels)>0){
     osfproject <- osf_retrieve_node('m79d2')
     osffiles <- osf_ls_files(osfproject,n_max=300)
     
