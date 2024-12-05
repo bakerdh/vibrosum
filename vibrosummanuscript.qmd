@@ -20,7 +20,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 #| include: false
 
 doanalysis <- 0
-fitmodels <- 1
+fitmodels <- 0
 plotfigures <- 1
 
 # install R packages
@@ -388,6 +388,7 @@ if r.doanalysis:
 #| include: false
 
 if r.plotfigures:
+    x = [12,18,24,30,36]
     eegdata = np.load('local/processedEEGdata.npz',allow_pickle=True)
     allsubjsF1 = eegdata['allsubjsF1']
     allsubjsF2 = eegdata['allsubjsF2']
@@ -1095,6 +1096,14 @@ if r.fitmodels:
 ```{python plotmodelling}
 
 if r.plotfigures:
+    pedcontrasts = np.arange(-12,31,6)
+    pedlist = np.arange(-12, 40)
+    
+    data = np.load('local/allthresh.npz')
+    allthresh = data['allthresh'] 
+    meanthresh=np.mean(allthresh, axis=0) #4*8
+    SEthresh = np.std(allthresh, axis=0, ddof=1) / np.sqrt(8) 
+    
     fig=plt.figure(figsize=(20,15))
     ax1=fig.add_subplot(2,2,1)
     ax2=fig.add_subplot(2,2,2)
@@ -1118,11 +1127,8 @@ if r.plotfigures:
     axes = [ax1, ax2, ax3, ax4]
     line_weight = 2
     for ax in axes:
-        for spine in ax.spines.values():
-            spine.set_linewidth(line_weight)
-    
-    
-    
+        for spine in ax.spines.values(): spine.set_linewidth(line_weight)
+
     ax1.text(0.05, 0.870, 'A', fontsize=40,  transform=fig.transFigure, fontweight='bold')
     ax2.text(0.55, 0.870, 'B', fontsize=40,  transform=fig.transFigure, fontweight='bold')
     ax3.text(0.05, 0.400, 'C', fontsize=40,  transform=fig.transFigure, fontweight='bold')
@@ -1134,12 +1140,12 @@ if r.plotfigures:
     collist = [ 'blue', 'red', 'orange', 'darkgreen']
     markers=['o','s','D','^']
     
-    allpreddB= np.load('local/allpreddB.npy')
+    allpreddB = np.load('local/allpreddB.npy')
     
-    for cond, marker in zip(range(4) , markers):
+    for cond, marker in zip(range(4), markers):
         ax1.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
         ax1.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='none', color=collist[cond])
-        ax1.plot(pedlist,allpreddB[cond], color=collist[cond], lw=2)
+        ax1.plot(pedlist,allpreddB[cond,:], color=collist[cond], lw=2)
     
     ax1.set_xlabel('Pedestal contrast (%)',fontsize=30 )
     ax1.set_ylabel('Threshold (%)', fontsize=30)
@@ -1196,8 +1202,8 @@ if r.plotfigures:
         for i in data_rows:
             idx = i % len(markers)
     
-            ax.scatter(contrastsdB, mean[i, :], marker=markers[idx],color=collist[idx], s=70)
-            ax.errorbar(contrastsdB, mean[i, :], yerr=SE[i, :], fmt='none', color=collist[idx])
+            ax.scatter(contrastsdB, allresp[i, :], marker=markers[idx],color=collist[idx], s=70)
+            # ax.errorbar(contrastsdB, allresp[i, :], yerr=SE[i, :], fmt='none', color=collist[idx])
             ax.plot(contrastsdB, allresp[i, :], color=collist[idx], lw=2)
             legend_elements.append(Line2D([0], [0], marker=markers[idx], color=collist[idx], linestyle='-', label=conditions[i - data_rows.start], markersize=12))
     
