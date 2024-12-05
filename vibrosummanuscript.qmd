@@ -19,7 +19,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 ```{r initialiseenvironment}
 #| include: false
 
-doanalysis <- 1
+doanalysis <- 0
 fitmodels <- 1
 plotfigures <- 1
 
@@ -380,7 +380,7 @@ if r.doanalysis:
         allsubjsF1[p,0:61,0:6,0:5] = allblocksF1  ##amplitudes at 26Hz: participant X electrode X condition X level
         allsubjsF2[p,0:61,0:6,0:5] = allblocksF2   ##amplitude form 23Hz: participant X electrode X condition X level
         
-    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1,allsubjsF2=allsubjsF2,selectSpec=selectSpec,info=info,freqs=freqs)
+    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1, allsubjsF2=allsubjsF2, selectSpec=selectSpec, info=info, freqs=freqs)
 
 ```
 
@@ -399,10 +399,10 @@ if r.plotfigures:
     condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
     
     # Row data for plotting spectra
-    Deka_spec = np.mean(selectSpec [:, :, 1, 4,:], axis=1)   #### average across 6 electrodes
-    Penta_spec = np.mean(selectSpec [:, :, 0, 4,:], axis=1)
-    CrossP_spec = np.mean(selectSpec [:, :, 3, 4,:], axis=1)
-    CrossDeka_spec = np.mean(selectSpec [:, :, 4, 4,:], axis=1)
+    Deka_spec = np.abs(np.mean(selectSpec [:, :, 1, 4,:], axis=1))   #### average across 6 electrodes
+    Penta_spec = np.abs(np.mean(selectSpec [:, :, 0, 4,:], axis=1))
+    CrossP_spec = np.abs(np.mean(selectSpec [:, :, 3, 4,:], axis=1))
+    CrossDeka_spec = np.abs(np.mean(selectSpec [:, :, 4, 4,:], axis=1))
     
     ####  Do outlier rejection,  calculate the data for plotting topmap
     topomapF1 = np.zeros((61,len(condlist),len(levellist)))
@@ -440,19 +440,17 @@ if r.plotfigures:
                 m = np.mean(temp)
                 filtered_indices = np.where(np.abs(temp - m) < (3 * s))[0]
                 for subj in range(len(filtered_indices)):
-                    if (subj < len(filtered_indices)):
-                      subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
-                    else:
-                      subjsF1[subj, el, cond, lev] = np.nan
+                    if (subj < len(filtered_indices)): subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
+                    else: subjsF1[subj, el, cond, lev] = np.nan
     
                 # F2 data
                 temp = np.abs(allsubjsF2[:, el, cond, lev])
                 temp = temp[temp > 0]
                 s = np.std(temp)
                 m = np.mean(temp)
-                filtered_index = np.where(np.abs(temp - m) < (3 * s))[0]
-                for subj in range(len(filtered_index)):
-                    if (subj < len(filtered_index)): subjsF2[subj, el, cond, lev] = temp[filtered_index[subj]]
+                filtered_indices = np.where(np.abs(temp - m) < (3 * s))[0]
+                for subj in range(len(filtered_indices)):
+                    if (subj < len(filtered_indices)): subjsF2[subj, el, cond, lev] = temp[filtered_indices[subj]]
                     else: subjsF2[subj, el, cond, lev] = np.nan
     
     ######################## filtered  F1, F2   contrast response data
@@ -545,16 +543,16 @@ if r.plotfigures:
     
         # Plot topomap
         topomap_ax = ax.inset_axes([0.49, 0.46, 0.45, 0.45])
-        img, _ = mne.viz.plot_topomap(topomap_data, info, axes=topomap_ax, show=False, cmap='viridis', vlim=(0, 0.5))
-        divider = make_axes_locatable(topomap_ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        cbar = plt.colorbar(img, cax=cax, ticks=[0, 0.25, 0.5])
-        cbar.ax.tick_params(labelsize=20)
-        cbar.ax.yaxis.set_label_position('left')
-        cbar.ax.yaxis.set_ticks_position('right')
+        # img, _ = mne.viz.plot_topomap(topomap_data, info, axes=topomap_ax, show=False, cmap='viridis', vlim=(0, 0.5))
+        # divider = make_axes_locatable(topomap_ax)
+        # cax = divider.append_axes("right", size="5%", pad=0.05)
+        # cbar = plt.colorbar(img, cax=cax, ticks=[0, 0.25, 0.5])
+        # cbar.ax.tick_params(labelsize=20)
+        # cbar.ax.yaxis.set_label_position('left')
+        # cbar.ax.yaxis.set_ticks_position('right')
     
-        # add the unit at the top center
-        cbar.ax.set_title('µV', fontsize=25, pad=2, loc='center')
+        # # add the unit at the top center
+        # cbar.ax.set_title('µV', fontsize=25, pad=2, loc='center')
     
         # Create colorbar for topomap
     ####Add text (a), (b)......to the plot
@@ -565,12 +563,11 @@ if r.plotfigures:
     ax5.text(0.03, 0.255, 'E', fontsize=50,  transform=fig.transFigure, fontweight='bold')
     ax6.text(0.55, 0.255, 'F', fontsize=50,  transform=fig.transFigure, fontweight='bold')
     
-    
     plot_PSD_with_topomap(Penta_spec, 'Pentadactyl', topomapF1 [:61, 0, 4], info, ax1)
     plot_PSD_with_topomap(Deka_spec, 'Dekadactyl', topomapF1 [:61, 1, 4], info, ax2)
     plot_PSD_with_topomap(CrossP_spec, 'Cross-Pentadactyl', topomapF2 [:61, 3, 4], info, ax3)
     plot_PSD_with_topomap(CrossDeka_spec, 'Cross-Dekadactyl', topomapF1 [:61, 4, 4], info, ax4)
-    
+
     ################################################## Plot contrast response function at 26Hz
     fillx = np.concatenate([x, x[::-1]])
     x_ticks = [0, 8, 16, 32, 64]
@@ -761,7 +758,7 @@ if r.fitmodels:
         sout = minimize(errorfit, initial_params,  method='Nelder-Mead', tol= 1e-10)
     
         if sout.success:
-            print("Optimization successfully", sout.x)
+            print("Optimization successful", sout.x)
             allout = np.concatenate(([errorfit(sout.x)], sout.x, [0]))
     
     
@@ -858,7 +855,7 @@ if r.fitmodels:
         sout = minimize(errorfit, initial_params,  method='Nelder-Mead', tol= 1e-10)
     
         if sout.success:
-            print("Optimization successfully", sout.x)
+            print("Optimization successful", sout.x)
             allout = np.concatenate(([errorfit(sout.x)], sout.x))
     
             # Save to a unique file
