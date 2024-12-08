@@ -21,7 +21,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 
 doanalysis <- 0
 fitmodels <- 0
-plotfigures <- 0
+plotfigures <- 1
 
 # install R packages
 packagelist <- c('utils','knitr','reticulate','osfr','tinytex')
@@ -57,7 +57,7 @@ from matplotlib import cm, colors, colorbar
 from statsmodels.stats.anova import AnovaRM
 import pingouin as pg
 from pingouin import pairwise_ttests
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 ```
 
@@ -67,56 +67,58 @@ from pingouin import pairwise_ttests
 
 if (!dir.exists('local/')){dir.create('local/')}
 
-  if (doanalysis==1){
-    osfproject <- osf_retrieve_node('m79d2')
-    osffiles <- osf_ls_files(osfproject,n_max=300)
-    if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$name=='8subjects.csv'),],'local/',progress=TRUE)}
+osfproject <- osf_retrieve_node('m79d2')
+osffiles <- osf_ls_files(osfproject,n_max=300)
+if (!file.exists('local/8subjects.csv')){osf_download(osffiles[which(osffiles$name=='8subjects.csv'),],'local/',progress=TRUE)}
 
-    osfproject <- osf_retrieve_node('z2fcm')
-    osffiles <- osf_ls_files(osfproject,n_max=300)
+if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$name=='allthresh.npz'),],'local/',progress=TRUE)}
+if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
+if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/allpreddB.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/allpreddB2.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB2.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/EEG_modelparams.npy')){osf_download(osffiles[which(osffiles$name=='EEG_modelparams.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/EEG_allresp.npy')){osf_download(osffiles[which(osffiles$name=='EEG_allresp.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/model1Param.npy')){osf_download(osffiles[which(osffiles$name=='model1Param.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/model2Param.npy')){osf_download(osffiles[which(osffiles$name=='model2Param.npy'),],'local/',progress=TRUE)}
 
-    if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')
-     osf_download(osffiles[which(osffiles$name=='setfiles.zip'),],'local/',progress=TRUE,conflicts='skip')
-     unzip('local/setfiles.zip',exdir='local/rawEEGdata/')
-     file.remove('local/setfiles.zip')
-     d <- dir('local/rawEEGdata/setfiles/',full.names=TRUE)
-     file.copy(d,'local/rawEEGdata/')
-     file.remove(d)
-     
-     for (i in 1:4){
-     osf_download(osffiles[which(osffiles$name==paste0('fdt',i,'.zip')),],'local/',progress=TRUE,conflicts='skip')
-     unzip(paste0('local/fdt',i,'.zip'),exdir='local/rawEEGdata/')
-     file.remove(paste0('local/fdt',i,'.zip'))
-     d <- dir(paste0('local/rawEEGdata/fdt',i),full.names=TRUE)
-     file.copy(d,'local/rawEEGdata/')
-     file.remove(d)
-     }
-    }
 
-    # for (s in 1:31){
-    #   if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
-    #   if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
-    # }
+if ((plotfigures+fitmodels)>0){
+  if (!file.exists('local/processedEEGdata.npz')){osf_download(osffiles[which(osffiles$name=='processedEEGdata.npz'),],'local/',progress=TRUE)}
+  if (!file.exists('local/montage-info.fif')){osf_download(osffiles[which(osffiles$name=='montage-info.fif'),],'local/',progress=TRUE)}
+}
+
+
+if (doanalysis==1){
+  
+  osfproject <- osf_retrieve_node('z2fcm')
+  osffiles <- osf_ls_files(osfproject,n_max=300)
+  
+  if (!dir.exists('local/rawEEGdata/')){dir.create('local/rawEEGdata/')
+    osf_download(osffiles[which(osffiles$name=='setfiles.zip'),],'local/',progress=TRUE,conflicts='skip')
+    unzip('local/setfiles.zip',exdir='local/rawEEGdata/')
+    file.remove('local/setfiles.zip')
+    d <- dir('local/rawEEGdata/setfiles/',full.names=TRUE)
+    file.copy(d,'local/rawEEGdata/')
+    file.remove(d)
     
+    for (i in 1:4){
+      osf_download(osffiles[which(osffiles$name==paste0('fdt',i,'.zip')),],'local/',progress=TRUE,conflicts='skip')
+      unzip(paste0('local/fdt',i,'.zip'),exdir='local/rawEEGdata/')
+      file.remove(paste0('local/fdt',i,'.zip'))
+      d <- dir(paste0('local/rawEEGdata/fdt',i),full.names=TRUE)
+      file.copy(d,'local/rawEEGdata/')
+      file.remove(d)
+    }
   }
   
-  if ((plotfigures+fitmodels)>0){
-    osfproject <- osf_retrieve_node('m79d2')
-    osffiles <- osf_ls_files(osfproject,n_max=300)
-    
-    if (!file.exists('local/processedEEGdata.npz')){osf_download(osffiles[which(osffiles$name=='processedEEGdata.npz'),],'local/',progress=TRUE)}
-    if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$name=='allthresh.npz'),],'local/',progress=TRUE)}
-    if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
-    if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
-    if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
-    if (!file.exists('local/allpreddB.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB.npy'),],'local/',progress=TRUE)}
-    if (!file.exists('local/allpreddB2.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB2.npy'),],'local/',progress=TRUE)}
-    if (!file.exists('local/EEG_modelparams.npy')){osf_download(osffiles[which(osffiles$name=='EEG_modelparams.npy'),],'local/',progress=TRUE)}
-    if (!file.exists('local/EEG_allresp.npy')){osf_download(osffiles[which(osffiles$name=='EEG_allresp.npy'),],'local/',progress=TRUE)}
-    if (!file.exists('local/model1Param.npy')){osf_download(osffiles[which(osffiles$name=='model1Param.npy'),],'local/',progress=TRUE)}
-    if (!file.exists('local/model2Param.npy')){osf_download(osffiles[which(osffiles$name=='model2Param.npy'),],'local/',progress=TRUE)}
-    
+  # for (s in 1:31){
+  #   if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.fdt'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.fdt')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+  #   if (!file.exists(paste0('local/rawEEGdata/P',s,'_EEG.set'))){osf_download(osffiles[which(osffiles$name==paste0('P',s,'_EEG.set')),],'local/rawEEGdata/',progress=TRUE,conflicts='skip')}
+  # }
+  
 }
+
 
 ```
 
@@ -401,6 +403,8 @@ if r.doanalysis:
         
     np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1, allsubjsF2=allsubjsF2, selectSpec=selectSpec, info=info, freqs=freqs)
 
+    info.save('local/montage-info.fif')  # save montage info in correct format
+
 ```
 
 ```{python plotEEGdata}
@@ -412,7 +416,7 @@ if r.plotfigures:
     allsubjsF1 = eegdata['allsubjsF1']
     allsubjsF2 = eegdata['allsubjsF2']
     selectSpec = eegdata['selectSpec']
-    info = eegdata['info']
+    info = mne.io.read_info('local/montage-info.fif')
     freqs = eegdata['freqs']
     
     levellist = ["C1","C2","C3","C4","C5"]
@@ -445,7 +449,7 @@ if r.plotfigures:
                 temp = temp[np.abs(temp-m)<(3*s)]
                 topomapF2[el,cond,lev] = np.mean(temp)
     
-    ##### Remove one outlier, the rest of 30 individual data are used to calculate mean amplitude across conditions, levels
+    ##### Remove one outlier, the rest of 30 participants are used to calculate mean amplitude across conditions, levels
     
     subjsF1 = np.zeros((31, 61, len(condlist), len(levellist)))  #*np.nan
     subjsF2 = np.zeros((31, 61, len(condlist), len(levellist)))  #*np.nan
@@ -508,7 +512,7 @@ if r.plotfigures:
     
     #######################################     plot spectrum + topomaps
     
-    fig=plt.figure(figsize=(20,30))
+    fig=plt.figure(figsize=(30,45))
     ax1=fig.add_subplot(3,2,1)
     ax2=fig.add_subplot(3,2,2)
     ax3=fig.add_subplot(3,2,3)
@@ -519,23 +523,23 @@ if r.plotfigures:
     pos = ax1.get_position()              # set the position of each subplot manually
     new_pos = [pos.x0, pos.y0+0.05, pos.width, pos.height] ###adjust position
     ax1.set_position(new_pos)
-    
+
     pos = ax2.get_position()              # set the position of each subplot manually
     new_pos = [pos.x0 + 0.05, pos.y0+0.05, pos.width, pos.height] ###adjust position
     ax2.set_position(new_pos)
-    
+
     pos = ax3.get_position()
     new_pos = [pos.x0, pos.y0, pos.width, pos.height]
     ax3.set_position(new_pos)
-    
+
     pos = ax4.get_position()
     new_pos = [pos.x0 + 0.05, pos.y0, pos.width, pos.height]
     ax4.set_position(new_pos)
-    
+
     pos = ax5.get_position()
     new_pos = [pos.x0, pos.y0-0.05, pos.width, pos.height]
     ax5.set_position(new_pos)
-    
+
     pos = ax6.get_position()
     new_pos = [pos.x0 + 0.05, pos.y0-0.05, pos.width, pos.height]
     ax6.set_position(new_pos)
@@ -552,6 +556,7 @@ if r.plotfigures:
         psds_mean = spectrum.mean(axis=0)[list(freq_range)]
         psds_std = spectrum.std(axis=0)[list(freq_range)]
         nsubjs = psds_std.shape[0]
+        print(nsubjs)
         psds_sr = psds_std / np.sqrt(nsubjs)
         ax.plot(freqs[list(freq_range)] - 1, psds_mean, label=label)
         ax.fill_between(freqs[list(freq_range)] - 1, psds_mean - psds_sr, psds_mean + psds_sr, color="b", alpha=0.2)
@@ -562,26 +567,26 @@ if r.plotfigures:
         ax.tick_params(axis='both', which='major', labelsize=25)
     
         # Plot topomap
-        topomap_ax = ax.inset_axes([0.49, 0.46, 0.45, 0.45])
-        # img, _ = mne.viz.plot_topomap(topomap_data, info, axes=topomap_ax, show=False, cmap='viridis', vlim=(0, 0.5))
-        # divider = make_axes_locatable(topomap_ax)
-        # cax = divider.append_axes("right", size="5%", pad=0.05)
-        # cbar = plt.colorbar(img, cax=cax, ticks=[0, 0.25, 0.5])
-        # cbar.ax.tick_params(labelsize=20)
-        # cbar.ax.yaxis.set_label_position('left')
-        # cbar.ax.yaxis.set_ticks_position('right')
+        topomap_ax = ax.inset_axes([0.55, 0.55, 0.38, 0.38])
+        img, _ = mne.viz.plot_topomap(topomap_data, info, axes=topomap_ax, show=False, cmap='viridis', vlim=(0, 0.5))
+        divider = make_axes_locatable(topomap_ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        cbar = plt.colorbar(img, cax=cax, ticks=[0, 0.25, 0.5])
+        cbar.ax.tick_params(labelsize=20)
+        cbar.ax.yaxis.set_label_position('left')
+        cbar.ax.yaxis.set_ticks_position('right')
     
-        # # add the unit at the top center
-        # cbar.ax.set_title('µV', fontsize=25, pad=2, loc='center')
+        # add the unit at the top center
+        cbar.ax.set_title('µV', fontsize=25, pad=2, loc='center')
     
         # Create colorbar for topomap
     ####Add text (a), (b)......to the plot
-    ax1.text(0.03, 0.870, 'A', fontsize=50,  transform=fig.transFigure, fontweight='bold')
-    ax2.text(0.55, 0.870, 'B', fontsize=50,  transform=fig.transFigure, fontweight='bold')
-    ax3.text(0.03, 0.550, 'C', fontsize=50,  transform=fig.transFigure, fontweight='bold')
-    ax4.text(0.55, 0.550, 'D', fontsize=50,  transform=fig.transFigure, fontweight='bold')
-    ax5.text(0.03, 0.255, 'E', fontsize=50,  transform=fig.transFigure, fontweight='bold')
-    ax6.text(0.55, 0.255, 'F', fontsize=50,  transform=fig.transFigure, fontweight='bold')
+    ax1.text(0.03, 0.87+0.05, '(a)', fontsize=80,  transform=fig.transFigure)
+    ax2.text(0.51, 0.87+0.05, '(b)', fontsize=80,  transform=fig.transFigure)
+    ax3.text(0.03, 0.55+0.05, '(c)', fontsize=80,  transform=fig.transFigure)
+    ax4.text(0.51, 0.55+0.05, '(d)', fontsize=80,  transform=fig.transFigure)
+    ax5.text(0.03, 0.23+0.05, '(e)', fontsize=80,  transform=fig.transFigure)
+    ax6.text(0.51, 0.23+0.05, '(f)', fontsize=80,  transform=fig.transFigure)
     
     plot_PSD_with_topomap(Penta_spec, 'Pentadactyl', topomapF1 [:61, 0, 4], info, ax1)
     plot_PSD_with_topomap(Deka_spec, 'Dekadactyl', topomapF1 [:61, 1, 4], info, ax2)
@@ -590,7 +595,7 @@ if r.plotfigures:
 
     ################################################## Plot contrast response function at 26Hz
     fillx = np.concatenate([x, x[::-1]])
-    x_ticks = [0, 8, 16, 32, 64]
+    x_ticks = [4, 8, 16, 32, 64]
     
     labels= ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl','Cross-Dekadactyl','Cross-Dichodactyl']
     condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
@@ -961,14 +966,14 @@ if r.fitmodels:
     if not os.path.exists(fitpath):
         os.makedirs(fitpath)
     
-    EEGF1 =np.load("local/allF1.npy")   # 30*6*5
-    meanF1=np.mean(EEGF1 , axis=0)  #6*5
+    EEGF1 = np.load("local/allF1.npy")   # 30*6*5
+    meanF1 = np.mean(EEGF1 , axis=0)  #6*5
     n = meanF1.shape[0]
     stdF1 = np.std(EEGF1, axis=0, ddof=1)
     SEF1 = stdF1/ np.sqrt(n)  #6*5
     
-    EEGF2 =np.load("local/allF2.npy")   # 30*6*5
-    meanF2=np.mean(EEGF2 , axis=0)  #6*5
+    EEGF2 = np.load("local/allF2.npy")   # 30*6*5
+    meanF2 = np.mean(EEGF2 , axis=0)  #6*5
     n = meanF2.shape[0]
     stdF2 = np.std(EEGF2, axis=0, ddof=1)
     SEF2 = stdF2/ np.sqrt(n)
@@ -1230,7 +1235,7 @@ if r.plotfigures:
         ax.set_xlabel('Intensity level (%)', fontsize=30)
         ax.set_ylabel('Model response', fontsize=30)
         ax.set_xticks(contrastsdB)
-        ax.set_xticklabels(['0', '8', '16', '32', '64'], fontsize=25)
+        ax.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
         ax.set_yticks([0, 0.1,0.2,0.3,0.4,0.5], [0, 0.1,0.2,0.3,0.4,0.5], fontsize = 25  )
         return legend_elements
     
@@ -1252,6 +1257,35 @@ if r.plotfigures:
     
     
     plt.savefig('Figures/models.pdf')
+
+```
+
+```{python dostats}
+
+row = pd.read_csv('local/8subjects.csv')
+ex1data = row[['Subject','Condition', 'PedestalContrast','TargetContrast','IsCorrect']].values
+df = pd.DataFrame(ex1data, columns=['Subject','Condition', 'PedestalContrast','TargetContrast', 'IsCorrect'])
+df['Condition'] = (df['Condition'] + 1) // 2
+ 
+r.ntotaltrials = ex1data.shape[0]
+r.trialspersubj = int(np.round(ex1data.shape[0]/8))
+
+data = np.load('local/allthresh.npz')
+allthresh = data['allthresh']  # 8*4*8
+meanthresh = np.mean(allthresh, axis=0) #4*8
+
+r.monbinsupradB = np.mean(meanthresh[0,1:7]-meanthresh[1,1:7])
+r.monbinsupra = 10**(r.monbinsupradB/20)
+r.dichthdelevdB = meanthresh[3,7] - meanthresh[3,0]
+r.dichthdelev = 10**(r.dichthdelevdB/20)
+
+EEGF1 = np.load("local/allF1.npy")   # 30*6*5
+EEGF2 = np.load("local/allF2.npy")   # 30*6*5
+meanF1 = np.mean(EEGF1, axis=0) #6*5
+monbinratios = meanF1[1,:]/meanF1[0,:]
+monbinratiosdB = 20*np.log10(monbinratios)
+meanratiodB = np.mean(monbinratiosdB)
+r.meanratio = 10**(meanratiodB/20)
 
 ```
 
@@ -1280,7 +1314,7 @@ where $resp$ is the binocular or binaural model response, $C_L$ and $C_R$ are th
 
 In tactile perception, some neuroimaging findings suggest there exist summation and suppression of vibration signals also. For instance, studies have recorded brain responses to vibration stimuli delivered to two fingers separately and simultaneously. Results indicated that at low levels of stimulation near the perceptual threshold, there was a facilitation or summation effect between two fingers. However, at higher levels of stimulation, a suppression effect was observed [@Gandevia1983]. Furthermore, the brain response to simultaneous vibration of two fingers is less than (approximately 50\% of) the sum of the responses to individual finger stimuli [@Biermann1998; @Gandevia1983]. In addition, the extent of suppression is dependent on the spatial distance between the fingers [@Gandevia1983; @Hoechstetter2001]. In some psychophysical studies, researchers measured vibration detection thresholds using various contactor sizes [@Gescheider2005; @Gu2013]. Results found that the threshold decreased as the contactor size increased, a phenomenon known as area summation. Specifically, when the contactor size was doubled, the threshold decreased by approximately 3 dB [@Gescheider2005]. These findings focused on the summation rather than suppression between inputs, because suppressive processes are minimal at low intensities near threshold. In summary, although substantial evidence suggests the existence of suppression in vibration combination, there has been relatively little psychophysical work above threshold, and a corresponding computational model has yet to be developed.
 
-Here, we combine psychophysical measurements (Experiment 1) with EEG recordings (Experiment 2) to assess human vibration perception, and fit a computational model to interpret the processes of vibration signal combination and suppression. In Experiment 1, we measure how thresholds vary across different conditions and pedestal levels using a two-interval forced-choice (2IFC) task. We find that thresholds decrease by approximately 1 dB when the number of inputs was doubled. This finding is consistent with probability summation rather than physiological summation. Our computational modelling indicated that this effect could potentially be explained without requiring suppression between digits. Consequently, in the EEG experiment, we directly measured suppression between digits. The modelling results indicated an inhibitory weight of suppression of around 0.5, intermediate between the weights observed for vision ($\sim 1$) and audition ($\sim 0$).
+Here, we combine psychophysical measurements (Experiment 1) with EEG recordings (Experiment 2) to assess human vibration perception, and fit a computational model to interpret the processes of vibration signal combination and suppression. In Experiment 1, we measure how thresholds vary across different conditions and pedestal levels using a two-interval forced-choice (2IFC) task. We find that thresholds decrease by approximately 1 dB when the number of inputs was doubled. This finding is consistent with probability summation rather than physiological summation. Our computational modelling indicated that this effect could potentially be explained without requiring suppression between digits. Consequently, in the EEG experiment, we directly measured suppression between digits. The modelling results indicated an inhibitory weight of suppression of $\omega \sim 0.5$, intermediate between the weights observed for vision ($\omega \sim 1$) and audition ($\omega \sim 0$).
 
 # Materials and Methods
 
@@ -1304,7 +1338,7 @@ In Experiment 1, a two-interval forced-choice (2IFC) task was used to measure de
 
 Each trial consisted of two 500 ms intervals: one containing the pedestal stimulus and the other containing the pedestal stimulus plus a target increment, separated by a 400 ms inter-stimulus interval. The next trial began 200 ms after the participant responded. To mask any sound produced by the solenoids and indicate the stimulus intervals, a 440 Hz beep sound was delivered through headphones simultaneously with the vibration stimuli. The order of the two intervals was randomised, and participants were required to determine which interval contained the target increment by pressing a foot pedal. Feedback was provided by a coloured square on the computer screen, with green indicating a correct response and red indicating an incorrect one. The amplitude of the target increment was determined using a pair of 3-down-1-up staircases, with a step size of 3 dB (where dB units are defined as $20 \times log_{10}(100 \times C)$, and $C$ is the stimulus intensity expressed as a proportion of the maximum system output), aiming to distribute trials around the detection threshold at 75\% correct. Threshold measurement was terminated after either 70 trials or 12 reversals, whichever occurred first.
 
-The pedestal and target stimuli were presented under four conditions (illustrated in [@fig-methods]a) and at eight pedestal levels (0, 1, 2, 4, 8, 16, 32, 64\%), with the pedestal level expressed as a percentage of the maximum vibration. In the "pentadactyl" condition (meaning five-fingered in Greek), the pedestal and target stimuli vibrated only "Set A" (analogous to the stimulation of one eye or one ear). In the "dekadactyl" (ten-fingered) condition, the pedestal and target stimuli vibrated both "Set A" and "Set B" (analogous to the stimulation of both eyes or both ears). Comparing the "pentadactyl" and "dekadactyl" conditions reveals the summation effect of doubling the number of inputs. In the "dichodactyl" condition (named for consistency with dichoptic conditions in vision experiments, where different stimuli are shown to the two eyes), the pedestal stimulus vibrated "Set A" and the target stimulus vibrated "Set B", permitting the measurement of masking effects across digits. The "half-dekadactyl" condition involved vibrating all ten digits for the pedestal stimulus, while only "Set A" vibrated for the target stimulus, enabling measurement of summation (by comparison with the dekadactyl condition) while controlling the number of digits receiving the pedestal stimulus [@Meese2006]. In all conditions, the vibration frequency for both pedestal and target stimuli was 26 Hz. "Set A" and "Set B" were counterbalanced across trials. Each pedestal level was tested in a single block lasting approximately 15 minutes and repeated three times. The entire experiment took around 7 hours per participant, resulting in a total of 60,438 trials (7,555 per participant on average), and was completed over multiple days.
+The pedestal and target stimuli were presented under four conditions (illustrated in [@fig-methods]a) and at eight pedestal levels (0, 1, 2, 4, 8, 16, 32, 64\%), with the pedestal level expressed as a percentage of the maximum vibration. In the "pentadactyl" condition (meaning five-fingered in Greek), the pedestal and target stimuli vibrated only "Set A" (analogous to the stimulation of one eye or one ear). In the "dekadactyl" (ten-fingered) condition, the pedestal and target stimuli vibrated both "Set A" and "Set B" (analogous to the stimulation of both eyes or both ears). Comparing the "pentadactyl" and "dekadactyl" conditions reveals the summation effect of doubling the number of inputs. In the "dichodactyl" condition (named for consistency with dichoptic conditions in vision experiments, where different stimuli are shown to the two eyes), the pedestal stimulus vibrated "Set A" and the target stimulus vibrated "Set B", permitting the measurement of masking effects across digits. The "half-dekadactyl" condition involved vibrating all ten digits for the pedestal stimulus, while only "Set A" vibrated for the target stimulus, enabling measurement of summation (by comparison with the dekadactyl condition) while controlling the number of digits receiving the pedestal stimulus [@Meese2006]. In all conditions, the vibration frequency for both pedestal and target stimuli was 26 Hz. "Set A" and "Set B" were counterbalanced across trials. Each pedestal level was tested in a single block lasting approximately 15 minutes and repeated three times. The entire experiment took around 7 hours per participant, resulting in a total of `r ntotaltrials` trials (`r trialspersubj` per participant on average), and was completed over multiple days.
 
 ## EEG procedures
 
@@ -1322,43 +1356,51 @@ For EEG data, all preprocessing was conducted using MNE-Python [@Gramfort2013]. 
 
 ## Computational modelling
 
+The psychophysical data were fitted using the two stage model of @Meese2006, as outlined in equations 1-4, with 7 free parameters ($m$, $S$, $\omega$, $p$, $q$, $Z$ and $k$). The final parameter ($k$) determines the threshold criteria, such that the model response in the target interval must exceed that in the null interval by $k$ for threshold to be reached. It is proportional to additive noise in the model. We also considered a modified model, in which the summation process described by @eq-binsum involved an additional exponent:
 
+$$binsum = (Stage1_L^\mu + Stage1_R^\mu)^{1/\mu}$$ {#eq-binsum2}
+
+The Minkowski exponent ($\mu$) is implicitly 1 in @eq-binsum, but was free to vary in our second model.
+
+To fit the EEG data, we used a simpler model described by Equations 1-3, but omitting the output nonlinearity described by @eq-stage2, which serves primarily to determine the shape of the dipper function in psychophysical studies, but is not required for EEG data [@Baker2017]. The output was instead defined as:
+
+$$resp = R_{max} \times binsum + k$$ {#eq-stage2b}
+
+where $R_{max}$ is a scaling parameter on the output, and $k$ again represents additive noise. The simpler model had 5 free parameters ($m$, $S$, $\omega$, $R_{max}$ and $k$). We used a downhill simplex algorithm to minimize the squared error between model and data. Fitting for each model was repeated 100 times from random starting vectors, and the parameters that gave the best numerical fit were selected.
 
 ## Data and code availability
 
-All raw data and analysis code are available at the project repository: https://doi.org/10.17605/OSF.IO/M79D2. The linked GitHub repository also contains a fully computationally reproducible version of this manuscript in Quarto format.
+All experiment code, raw data, processed data and analysis code are available at the project repository: https://doi.org/10.17605/OSF.IO/M79D2. The linked GitHub repository also contains a fully computationally reproducible version of this manuscript in Quarto format.
 
 # Results
 
 ## Summation and suppression effects on vibration thresholds
 
-In Experiment 1, participants were required to report which interval included the target stimulus. The average thresholds across 8 participants for each condition and pedestal level are shown in Figure 2a. A 4 (condition) $\times$ 8 (pedestal contrast) repeated measures ANOVA with Bonferroni-corrected post-hoc tests was used to assess statistical differences between factors. Results found significant main effects of condition (F = 285.66, p < 0.01, $\eta_G^2$ = 0.67, Greenhouse-Geisser corrected) and pedestal level (F = 71.75, p < 0.01, $\eta_G^2$ =0.84, Greenhouse-Geisser corrected), as well as a significant interaction between the two factors (F = 28.19, p < 0.01, $\eta_G^2$ = 0.43, Greenhouse-Geisser corrected). When plotting the thresholds against pedestal level, except for the "dichodactyl" condition (green diamonds), the other three conditions exhibited a "dipper" shape. Specifically, at low pedestal levels (0.5 to 2\%), thresholds decreased with increasing pedestal level, indicating a facilitation effect. When the pedestal level exceeded 2\%, thresholds increased due to a masking effect, resulting in approximately parallel handles across the "pentadactyl" (blue circles), "dekadactyl" (red squares) and "half-dekadactyl" (orange triangles) conditions. At detection threshold (pedestal level = 0\%), the threshold for the ‘dekadactyl’ condition was around 1 dB lower than for the ‘pentadactyl’ condition, with no significant difference. This weak summation between digits is lower than what is typically attributed to physiological summation, suggesting the presence of probability summation instead [@Quick1974; @Tyler2000].
+In Experiment 1, participants were required to report which interval included the target stimulus. The average thresholds across 8 participants for each condition and pedestal level are shown in [@fig-dippers]a. A 4 (condition) $\times$ 8 (pedestal contrast) repeated measures ANOVA with Bonferroni-corrected post-hoc tests was used to assess statistical differences between factors. Results found significant main effects of condition (F = 285.66, $p$ < 0.01, $\eta_G^2$ = 0.67, Greenhouse-Geisser corrected) and pedestal level (F = 71.75, $p$ < 0.01, $\eta_G^2$ = 0.84, Greenhouse-Geisser corrected), as well as a significant interaction between the two factors (F = 28.19, $p$ < 0.01, $\eta_G^2$ = 0.43, Greenhouse-Geisser corrected). When plotting the thresholds against pedestal level, except for the dichodactyl condition (green diamonds), the other three conditions exhibited a dipper shape. Specifically, at low pedestal levels (0.5 to 2\%), thresholds decreased with increasing pedestal level, indicating a facilitation effect. When the pedestal level exceeded 2\%, thresholds increased due to a masking effect, resulting in approximately parallel handles across the pentadactyl (blue circles), dekadactyl (red squares) and half-dekadactyl (orange triangles) conditions. At detection threshold (pedestal level = 0\%), the threshold for the dekadactyl condition was around 1 dB lower than for the pentadactyl condition, with no significant difference. This weak summation between digits is lower than that typically attributed to physiological summation, suggesting the presence of probability summation instead [@Quick1974; @Tyler2000].
 
 ::: {.content-visible unless-format="docx"}
-![Test dipper figure.](Figures/dippers.pdf){#fig-dippers}
+![Thresholds (a) and psychometric slope values (b) from Experiment 1. Data are averaged across N=8 participants, with shaded regions indicating ±1SE across participants.](Figures/dippers.pdf){#fig-dippers}
 :::
 
-Above detection threshold, thresholds in the "dekadactyl" condition were significantly lower than those in the "pentadactyl" condition (p < 0.05, except at 8\%, p < 0.01), with the exception of pedestal levels at 2\% and 16\%. On average, the thresholds decreased by a factor of approximately 1.32 (2.42 dB). Additionally, thresholds in the "half-dekadactyl" condition, where the pedestal stimulus vibrated 10 digits, but the target stimulus only vibrated 5 digits, were significantly higher than those in the "dekadactyl" condition at pedestal of 0.5\% (p = 0.01), and 2\% to 32\% (p < 0.001). These findings suggest a summation effect when the inputs were doubled. In the "dichodactyl" condition, thresholds increased across all pedestal levels, with thresholds elevated by a factor of 8 (17.80 dB) at the highest pedestal level (32\%). This result indicates a suppression effect when adding a mask between digits, where the target stimulus could only be detected when it approached the pedestal intensity.
+Above detection threshold, thresholds in the dekadactyl condition were significantly lower than those in the pentadactyl condition ($p$ < 0.05, except at 8\%, $p$ < 0.01), with the exception of pedestal levels at 2\% and 16\%. On average, the thresholds decreased by a factor of approximately `r round(monbinsupra,digits=2)` (`r round(monbinsupradB,digits=2)` dB). Additionally, thresholds in the half-dekadactyl condition, where the pedestal stimulus vibrated 10 digits, but the target stimulus only vibrated 5 digits, were significantly higher than those in the dekadactyl condition at pedestal of 0.5\% ($p$ = 0.01), and 2\% to 32\% ($p$ < 0.001). These findings could be interpreted as a summation effect when the target inputs were doubled. However the psychometric function is linearised from the bottom of the dip onwards, which might increase the effects of probability summation. We return to this point in the modelling section. In the dichodactyl condition, thresholds increased across all pedestal levels, with thresholds elevated by a factor of `r round(dichthdelev)` (`r round(dichthdelevdB,digits=2)` dB) at the highest pedestal level (32\%). This result is consistent with a suppression effect when adding a mask between digits, where the target stimulus could only be detected when it approached the pedestal intensity.
 
-The slopes of the psychometric function for each condition are illustrated in Figure 2b. At detection threshold, all conditions exhibited relatively steep slopes, around $\beta = 4$. At low pedestal levels (0 to 4\%), except for in the "dichodactyl" condition (green triangles), the slopes decreased with increasing pedestal level, approaching $\beta = 1$ at a pedestal level of 4\%. At higher pedestal levels (4\% to 32\%), the slopes for these three conditions remained shallow, consistent with previous studies using the same paradigm [@Foley1981; @Meese2006]. In contrast, the slopes in the "dichodactyl" condition remained steep across all pedestal levels, with slight variations between $\beta = 2$ and 5. This pattern differs from those observed in dichoptic masking in vision [@Meese2006; @Baker2024], where slopes were steep at detection threshold, became shallow at lower contrast levels, and then became very steep again at higher contrast levels (see Appendix, Fig.?). The very steep slopes ($\beta \sim 6$) in dichoptic masking are attributed to mandatory physiological summation between the eyes [@Baker2013]. Therefore, the approximately constant slopes observed in the "dichodactyl" condition suggest that physiological summation between digits is unlikely.
-
-## Model results of psychophysical data
+The slopes of the psychometric function for each condition are illustrated in [@fig-dippers]b. At detection threshold, all conditions exhibited relatively steep slopes, around $\beta = 4$. At low pedestal levels (0 to 4\%), except for in the dichodactyl condition (green triangles), the slopes decreased with increasing pedestal level, approaching $\beta = 1$ at a pedestal level of 4\%. At higher pedestal levels (4\% to 32\%), the slopes for these three conditions remained shallow, consistent with previous studies using the same paradigm [@Foley1981; @Meese2006]. In contrast, the slopes in the dichodactyl condition remained steep across all pedestal levels, with slight variations in the range $2 < \beta < 5$. This pattern differs from those observed in dichoptic masking in vision [@Meese2006; @Baker2024], where slopes were steep at detection threshold, became shallow at lower contrast levels, and then became very steep again at higher contrast levels. The very steep slopes ($\beta \sim 6$) in dichoptic masking are attributed to mandatory physiological summation between the eyes [@Baker2013]. Therefore, the approximately constant slopes observed in the dichodactyl condition suggest that mandatory physiological summation between digits may not occur here.
 
 ## Summation and suppression effects on neural responses
 
-The average amplitude spectra and scalp distributions for four conditions of Experiment 2 are shown in Fig. 3a-d. The steady-state EEG signals were strongest at fronto-central electrodes for both frequencies, aligning with findings from previous studies involving finger vibration [@Porcu2014; @Timora2018]. Therefore, we averaged the EEG responses across six electrodes ($F1$, $F2$, $Fz$, $FC1$, $FC2$, $FCz$) to calculate intensity-response functions at both 23 Hz and 26 Hz.
+The average amplitude spectra and scalp distributions for four conditions of Experiment 2 are shown in [@fig-EEG]a-d. The steady-state EEG signals were strongest at fronto-central electrodes for both frequencies, aligning with findings from previous studies involving finger vibration [@Porcu2014; @Timora2018]. Therefore, we averaged the EEG responses across six electrodes ($F1$, $F2$, $Fz$, $FC1$, $FC2$, $FCz$) to calculate intensity-response functions at both 23 Hz and 26 Hz.
 
 ::: {.content-visible unless-format="docx"}
-![Test EEG figure.](Figures/SSEPs.pdf){#fig-EEG}
+![Results of the EEG experiment. Panels (a-d) show Fourier spectra and inset scalp topographies for a subset of four conditions at the highest intensity. Panels (e,f) show intensity-response functions for all conditions at 26Hz (e) and 23Hz (f). Data are averaged across N=30 participants, and shaded regions indicate ±1SE across participants.](Figures/SSEPs.pdf){#fig-EEG}
 :::
 
-In the "pentadactyl" (blue circles) and "dekadactyl" (red squares) conditions, where a 26 Hz stimulus was used, we observed a peak at 26 Hz in both Fig. 3a and 3b, with a stronger brain activity at the central frontal region in the "dekadactyl" condition. A similar pattern was observed in the "cross-pentadactyl" (yellow triangles) condition, where a 23 Hz stimulus resulted in a peak at 23 Hz. In the "cross-dekadactyl" (pink pentagons) condition, when two different frequencies were simultaneously presented, peaks were observed at the original frequencies (26 Hz (F1) and 23 Hz (F2)) as well as at specific intermodulation frequencies (20 Hz ($2 \times F2 - F1$) and 29 Hz ($2 \times F1 - F2$)). Additionally, brain activity in the "cross-dichodactyl" condition was similar to that in the "cross-dekadactyl" condition.
+In the pentadactyl and dekadactyl conditions, where a 26 Hz stimulus was used, we observed a peak at 26 Hz in both [@fig-EEG]a and b, with a stronger activity at the fronto-central region in the dekadactyl condition. A similar pattern was observed in the cross-pentadactyl condition, where a 23 Hz stimulus resulted in a peak at 23 Hz ([@fig-EEG]c). In the cross-dekadactyl condition ([@fig-EEG]d), when two different frequencies were simultaneously presented, peaks were observed at the original frequencies (26 Hz (F1) and 23 Hz (F2)) as well as at specific intermodulation frequencies (20 Hz ($2 \times F2 - F1$) and 29 Hz ($2 \times F1 - F2$)). Additionally, the distribution of activity across the scalp was similar in the cross-dichodactyl and cross-dekadactyl conditions.
 
-Two 6 (condition) x 5 (intensity) repeated measures ANOVAs with Bonferroni-corrected post-hoc tests were conducted on the EEG amplitudes at each frequency separately. At 26 Hz, significant main effects of condition (F = 86.61, p < 0.001, $\eta_G^2$ = 0.40, Greenhouse-Geisser corrected), intensity level (F = 144.86, p < 0.001, $\eta_G^2$ = 0.39, Greenhouse-Geisser corrected), and a significant interaction effect (F = 18.10, p < 0.001, $\eta_G^2$ = 0.17) were observed. Figures 3e (26 Hz) and 3f (23 Hz) show the intensity-response functions. In the "pentadactyl" condition (blue circles), EEG amplitudes increased monotonically with increasing intensity level (Fig. 3e). In the "dekadactyl" condition (red squares), doubling the inputs led to significantly stronger responses at intensity levels of 8\% (p < 0.01), 16\% (p < 0.001), and 32\% (p < 0.001). Compared to the "pentadactyl" condition, average amplitudes increased by a factor of 1.4 across all intensity levels, indicating a summation effect. In the "dichodactyl" condition (green triangles), the target stimulus was presented to "Set A", while a fixed vibration at 32\% of maximum intensity was presented to "Set B", resulting in an increased response with increasing intensity levels. At higher intensity levels (32 to 64\%), the responses in the "dichodactyl" condition approximated those in the "dekadactyl" condition. In the "cross-dekadactyl" (pink pentagons) and "cross-dichodactyl" (black diamonds) conditions, two different frequencies were presented simultaneously. Instead of summing, they suppressed each other, leading to weaker responses compared to the "pentadactyl" condition, with a significant difference observed between the "pentadactyl" and "cross-dichodactyl" conditions at the 16\% intensity level (p < 0.001).
+Responses as a function of vibration intensity showed monotonic increases for most conditions ([@fig-EEG]e,f). Two 6 (condition) $\times$ 5 (intensity) repeated measures ANOVAs with Bonferroni-corrected post-hoc tests were conducted on the EEG amplitudes at each frequency separately. At 26 Hz, significant main effects of condition (F = 86.61, $p$ < 0.001, $\eta_G^2$ = 0.40, Greenhouse-Geisser corrected), intensity level (F = 144.86, $p$ < 0.001, $\eta_G^2$ = 0.39, Greenhouse-Geisser corrected), and a significant interaction effect (F = 18.10, $p$ < 0.001, $\eta_G^2$ = 0.17) were observed. In the pentadactyl condition (blue circles), EEG amplitudes increased monotonically with increasing intensity level ([@fig-EEG]e). In the dekadactyl condition (red squares), doubling the inputs led to significantly stronger responses at intensity levels of 8\% ($p$ < 0.01), 16\% ($p$ < 0.001), and 32\% ($p$ < 0.001). Compared to the pentadactyl condition, average amplitudes increased by a factor of `r round(meanratio,digits=1)` across all intensity levels, indicating a sub-linear summation effect. In the dichodactyl condition (green triangles), the target stimulus was presented to Set A, while a fixed vibration at 32\% of maximum intensity was presented to Set B, resulting in a high baseline response, and responses that increased with intensity level. At higher intensity levels (32 to 64\%), the responses in the dichodactyl condition approximated those in the dekadactyl condition. In the cross-dekadactyl (pink pentagons) and cross-dichodactyl (black diamonds) conditions, two different frequencies were presented simultaneously. Instead of summing, they suppressed each other, leading to weaker responses compared to the pentadactyl condition, with a significant difference observed between the pentadactyl and cross-dichodactyl conditions at the 16\% intensity level ($p$ < 0.001).
 
-At 23 Hz, we also found significant main effects of condition (F = 146.40, p < 0.001, $\eta_G^2$ = 0.55, Greenhouse-Geisser corrected), intensity level (F = 72.44, p < 0.001, $\eta_G^2$ = 0.12), as well as a significant interaction effect (F = 38.37, p < 0.001, $\eta_G^2$ = 0.37, Greenhouse-Geisser corrected). Further evidence of suppression was observed in the "cross-dekadactyl" condition, where simultaneous 23 Hz and 26 Hz stimuli led to significantly reduced responses compared to the "cross-pentadactyl" condition (yellow triangles in Fig. 3f) at intensity levels of 16\%, 32\%, and 64\% (all p < 0.001). In the "cross-dichodactyl" condition (pink pentagons in Fig. 3f), a stronger initial response at 0\% target level decreased with increasing intensity levels (F = 8.85, p < 0.01, $\eta_G^2$ = 0.13, Greenhouse-Geisser corrected), indicating a masking effect and suppression between digits. As expected, the other three conditions with a 26 Hz vibration did not show any measurable responses at 23 Hz (Fig. 3f).
+At 23 Hz ([@fig-EEG]f), we also found significant main effects of condition (F = 146.40, $p$ < 0.001, $\eta_G^2$ = 0.55, Greenhouse-Geisser corrected), intensity level (F = 72.44, $p$ < 0.001, $\eta_G^2$ = 0.12), as well as a significant interaction effect (F = 38.37, $p$ < 0.001, $\eta_G^2$ = 0.37, Greenhouse-Geisser corrected). Further evidence of suppression was observed in the cross-dekadactyl condition (pink pentagons), where simultaneous 23 Hz and 26 Hz stimuli led to significantly reduced responses compared to the cross-pentadactyl condition (yellow triangles) at intensity levels of 16\%, 32\%, and 64\% (all $p$ < 0.001). In the cross-dichodactyl condition (black diamonds), a stronger initial response to the mask at 4\% target level decreased with increasing target intensity levels (F = 8.85, $p$ < 0.01, $\eta_G^2$ = 0.13, Greenhouse-Geisser corrected), indicating a masking effect and suppression between digits. As expected, the three conditions involving only a 26 Hz vibration did not show any measurable responses at 23 Hz ([@fig-EEG]f).
 
-## Modelling
+## Computational modelling results
 
 
 ::: {.content-visible unless-format="docx"}
@@ -1367,7 +1409,7 @@ At 23 Hz, we also found significant main effects of condition (F = 146.40, p < 0
 
 # Discussion
 
-In this study, we present evidence supporting the processes of signal summation and suppression in vibrotactile signal combination. In the psychophysical experiment, we observed that doubling the inputs resulted in a slight reduction in detection and discrimination thresholds, indicating a weak summation effect. Additionally, adding a masking stimulus led to increased discrimination thresholds, indicating a suppression process. Furthermore, the EEG experiment demonstrated that adding the same frequency increases brain activity, whereas adding a different frequency decreases it. These findings provide further evidence of the summation and suppression effect between digits. Our computational model fitting results show two vibrotactile inputs suppress each other before being combined, and the weight of suppression between digits is around (0.7?), which is intermediate between the corresponding values observed in visual [@Baker2017] and auditory [@Baker2020] signal combination. Overall, our results suggest the presence of suppression in vibrotactile signal combination, with a suppression effect distinct from that observed in visual and auditory signal combination. In the remainder of this discussion, we consider the underlying mechanisms of vibrotactile signal combination and the differences across sensory modalities.
+In this study, we present evidence supporting the processes of signal summation and suppression in vibrotactile signal combination. In the psychophysical experiment, we observed that doubling the inputs resulted in a slight reduction in detection and discrimination thresholds, indicating a weak summation effect. Additionally, adding a masking stimulus led to increased discrimination thresholds, indicating a suppression process. Furthermore, the EEG experiment demonstrated that adding the same frequency increases brain activity, whereas adding a different frequency decreases it. These findings provide further evidence of the summation and suppression effect between digits. Our computational model fitting results show two vibrotactile inputs suppress each other before being combined, and the weight of suppression between digits is around $\omega=0.5$, which is intermediate between the corresponding values observed in visual [@Baker2017] and auditory [@Baker2020] signal combination. Overall, our results suggest the presence of suppression in vibrotactile signal combination, with a suppression effect distinct from that observed in visual and auditory signal combination. In the remainder of this discussion, we consider the underlying mechanisms of vibrotactile signal combination and the differences across sensory modalities.
 
 Our findings are consistent with previous studies [@Gescheider2002; @Gescheider2005; @Verrillo1963] that suggest doubling inputs can reduce the vibration detection threshold. However, the summation effect observed in our study is weaker than that reported in these studies, which found a 3 dB reduction in detection threshold when using vibrations above 40 Hz and doubling the contactor size. This discrepancy may be attributed to the different vibration frequencies used in the studies. Some psychophysical studies have proposed that four distinct mechanoreceptive channels mediate vibration perception: Pacinian (P), Non-Pacinian I (NP I), Non-Pacinian II (NP II), and Non-Pacinian III (NP III) [@Bolanowski1988; @Verrillo1963]. Each channel has unique characteristics and responds to specific frequency ranges. For instance, the P channel is more sensitive to higher frequencies (e.g., greater than 40 Hz) and is the only channel that possesses the property of spatial summation [@Bolanowski1988; @Gescheider2002; @Verrillo1965]. In contrast, vibrations between 2 and 40 Hz are mediated by the NP I channel, which has been shown not to exhibit spatial summation [@Bolanowski1988; @Gescheider1994; @Verrillo1963]. Consequently, the weak summation effect observed in our study may be attributed to the 26 Hz vibration, which is determined by the NP I channel that lacks spatial summation. Additionally, unlike the study by @Gescheider2005, which used varying contactor sizes to stimulate random areas within a test region—thereby preventing participants from knowing the exact location of stimulation, our study specifically involved the stimulation of individual digits, with participants aware of which digits were being stimulated. This methodological difference likely contributed to the observed discrepancy between the studies.
 
