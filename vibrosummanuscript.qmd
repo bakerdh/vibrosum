@@ -1387,9 +1387,9 @@ r.meanratio = np.round(10**(meanratiodB/20), 2)
 ```{r roundstats}
 #| include: false
 
-dipperstats[,6] <- round(dipperstats[,6],digits=2)
-dipperstats[,9] <- round(dipperstats[,9],digits=3)
-dipperstats[,8] <- p_format(dipperstats[,8],digits=3,accuracy=0.001,leading.zero=TRUE)
+dipperstats[,6] <- round(as.numeric(dipperstats[,6]),digits=2)
+dipperstats[,9] <- round(as.numeric(dipperstats[,9]),digits=3)
+dipperstats[,8] <- p_format(as.numeric(dipperstats[,8]),digits=3,accuracy=0.001,leading.zero=TRUE)
 
 ```
 
