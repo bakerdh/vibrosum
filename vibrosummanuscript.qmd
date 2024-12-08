@@ -21,7 +21,7 @@ $^2$Corresponding author, email: mfv507\@york.ac.uk
 
 doanalysis <- 0
 fitmodels <- 0
-plotfigures <- 1
+plotfigures <- 0
 
 # install R packages
 packagelist <- c('utils','knitr','reticulate','osfr','tinytex')
@@ -1268,24 +1268,24 @@ df = pd.DataFrame(ex1data, columns=['Subject','Condition', 'PedestalContrast','T
 df['Condition'] = (df['Condition'] + 1) // 2
  
 r.ntotaltrials = ex1data.shape[0]
-r.trialspersubj = ex1data.shape[0]/8
+r.trialspersubj = np.round(ex1data.shape[0]/8)
 
 data = np.load('local/allthresh.npz')
 allthresh = data['allthresh']  # 8*4*8
-meanthresh = np.mean(allthresh, axis=0) #4*8
+meanthresh = np.mean(allthresh, axis=0)    #4*8
 
-r.monbinsupradB = np.mean(meanthresh[0,1:7]-meanthresh[1,1:7])
-r.monbinsupra = 10**(r.monbinsupradB/20)
-r.dichthdelevdB = meanthresh[3,7] - meanthresh[3,0]
-r.dichthdelev = 10**(r.dichthdelevdB/20)
+r.monbinsupradB = np.round(np.mean(meanthresh[0,1:7]-meanthresh[1,1:7]),2)
+r.monbinsupra = np.round(10**(r.monbinsupradB/20),2)
+r.dichthdelevdB = np.round(meanthresh[3,7] - meanthresh[3,0], 2)
+r.dichthdelev = np.round(10**(r.dichthdelevdB/20), 2)
 
 EEGF1 = np.load("local/allF1.npy")   # 30*6*5
 EEGF2 = np.load("local/allF2.npy")   # 30*6*5
 meanF1 = np.mean(EEGF1, axis=0) #6*5
 monbinratios = meanF1[1,:]/meanF1[0,:]
 monbinratiosdB = 20*np.log10(monbinratios)
-meanratiodB = np.mean(monbinratiosdB)
-r.meanratio = 10**(meanratiodB/20)
+meanratiodB = np.round(np.mean(monbinratiosdB), 2)
+r.meanratio = np.round(10**(meanratiodB/20), 2)
 
 ```
 
