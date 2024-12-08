@@ -1268,7 +1268,7 @@ df = pd.DataFrame(ex1data, columns=['Subject','Condition', 'PedestalContrast','T
 df['Condition'] = (df['Condition'] + 1) // 2
  
 r.ntotaltrials = ex1data.shape[0]
-r.trialspersubj = np.round(ex1data.shape[0]/8)
+r.trialspersubj = int(np.round(ex1data.shape[0]/8))
 
 data = np.load('local/allthresh.npz')
 allthresh = data['allthresh']  # 8*4*8
@@ -1279,13 +1279,108 @@ r.monbinsupra = np.round(10**(r.monbinsupradB/20),2)
 r.dichthdelevdB = np.round(meanthresh[3,7] - meanthresh[3,0], 2)
 r.dichthdelev = np.round(10**(r.dichthdelevdB/20), 2)
 
-EEGF1 = np.load("local/allF1.npy")   # 30*6*5
-EEGF2 = np.load("local/allF2.npy")   # 30*6*5
-meanF1 = np.mean(EEGF1, axis=0) #6*5
-monbinratios = meanF1[1,:]/meanF1[0,:]
-monbinratiosdB = 20*np.log10(monbinratios)
-meanratiodB = np.round(np.mean(monbinratiosdB), 2)
-r.meanratio = np.round(10**(meanratiodB/20), 2)
+merged_array = allthresh.reshape(256, 1)
+
+# Create index arrays
+subs = np.repeat(np.arange(1, 9), 32).reshape(-1, 1)  # 8 participants
+conditions = np.tile(np.repeat(np.arange(1, 5), 8), 8).reshape(-1, 1)      # 4 conditions
+levels = np.tile(np.arange(1, 9), 32).reshape(-1, 1)          # 8 levels, repeated 32 times
+
+# Combine all data into one array
+alldata_array = np.hstack((subs, conditions, levels, merged_array))
+
+df = pd.DataFrame(alldata_array, columns=['subs', 'condition', 'level', 'threshold'])
+df['subs'] = df['subs'].astype(int)
+df['condition'] = df['condition'].astype(int)
+df['level'] = df['level'].astype(int)
+
+anova_results = pg.rm_anova(dv='threshold', within=['condition', 'level'], subject='subs', data=df, detailed=True)
+pd.set_option('display.max_columns', None)  # Show all columns
+pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
+
+print(anova_results)
+r.dipperstats = anova_results
+
+posthoc = pairwise_ttests(dv='threshold',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
+print(posthoc)
+r.dipperposthocs = posthoc
+
+# EEGF1 = np.load("local/allF1.npy")   # 30*6*5
+# EEGF2 = np.load("local/allF2.npy")   # 30*6*5
+# meanF1 = np.mean(EEGF1, axis=0) #6*5
+# monbinratios = meanF1[1,:]/meanF1[0,:]
+# monbinratiosdB = 20*np.log10(monbinratios)
+# meanratiodB = np.round(np.mean(monbinratiosdB), 2)
+# r.meanratio = np.round(10**(meanratiodB/20), 2)
+# 
+# 
+# merged_array1 = EEGF1.reshape(900, 1)              
+#                 
+# subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
+# conditions = np.tile(np.repeat(np.arange(1, 7), 5), 30).reshape(-1, 1)     
+# levels = np.tile(np.arange(1, 6), 180).reshape(-1, 1)         
+# 
+# # Combine all data into one array
+# alldata_array1 = np.hstack((subs, conditions, levels, merged_array1))
+# 
+# df = pd.DataFrame(alldata_array1, columns=['subs', 'condition', 'level', 'amplitudes'])
+# df['subs'] = df['subs'].astype(int)
+# df['condition'] = df['condition'].astype(int)
+# df['level'] = df['level'].astype(int)
+# 
+# ###ANOVA F1
+# aov_results1 = pg.rm_anova(dv='amplitudes', within=['condition', 'level'], subject='subs', data=df, detailed=True)
+# pd.set_option('display.max_columns', None)  # Show all columns
+# pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
+# print(aov_results1)
+# #########post-hoc test
+# posthocF1= pairwise_ttests(dv='amplitudes',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
+# #posthocF1.to_csv('C:/documents/meanEEGresp/posthocF1.csv', index=False)
+# print(posthocF1)
+# 
+# 
+# 
+# 
+# merged_array2 = EEGF2.reshape(900, 1)              
+#                 
+# subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
+# conditions = np.tile(np.repeat(np.arange(1, 7), 5), 30).reshape(-1, 1)     
+# levels = np.tile(np.arange(1, 6), 180).reshape(-1, 1)         
+# 
+# # Combine all data into one array
+# alldata_array2 = np.hstack((subs, conditions, levels, merged_array2))
+# 
+# df = pd.DataFrame(alldata_array2, columns=['subs', 'condition', 'level', 'amplitudes'])
+# df['subs'] = df['subs'].astype(int)
+# df['condition'] = df['condition'].astype(int)
+# df['level'] = df['level'].astype(int)
+# 
+# ###ANOVA F2
+# aov_results2 = pg.rm_anova(dv='amplitudes', within=['condition', 'level'], subject='subs', data=df, detailed=True)
+# pd.set_option('display.max_columns', None)  # Show all columns
+# pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
+# print(aov_results2)
+# #########post-hoc test
+# posthocF2= pairwise_ttests(dv='amplitudes',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
+# #posthocF2.to_csv('C:/documents/meanEEGresp/posthocF2.csv', index=False)
+# print(posthocF2)                
+#    
+#     
+# ### one-way ANOVA on Crossdichodactyl condition
+# Crossdichodactyl_dataF2 = dataF2[:,5,:]
+# merged_array3 = Crossdichodactyl_dataF2.reshape(150, 1)
+# subs = np.repeat(np.arange(1, 31), 5).reshape(-1, 1)
+# levels = np.tile(np.arange(1, 6), 30).reshape(-1, 1)
+# alldata_array3 = np.hstack((subs, levels, merged_array3))
+# 
+# df = pd.DataFrame(alldata_array3, columns=['subs', 'level', 'amplitudes'])
+# df['subs'] = df['subs'].astype(int)
+# df['level'] = df['level'].astype(int)
+# aov_results3 = pg.rm_anova(dv='amplitudes', within=['level'], subject='subs', data=df, detailed=True, effsize='np2')
+# pd.set_option('display.max_columns', None)  # Show all columns
+# pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
+# print('Crossdichodactyl:', aov_results3)
+
 
 ```
 
@@ -1294,7 +1389,7 @@ r.meanratio = np.round(10**(meanratiodB/20), 2)
 
 # Introduction
 
-Signal combination is crucial for human perception and our interaction with the environment. Our sensory systems comprise a variety of receptors and neural pathways that detect and process a wide range of stimuli, including sight, hearing, touch, and smell. To construct a coherent and comprehensive representation of our surroundings, the brain must filter out overlapping or redundant information and avoid excessively strong signals to prevent sensory overload. Therefore, in addition to additive processes, suppressive processes are also involved in signal combination. This suppression during signal combination has been investigated both within (e.g., vision, hearing, touch, @Baker2017; @Baker2020; @Biermann1998; @Gandevia1983) and between (e.g., visuo-tactile, audio-visual, @Ide2013; @Hidaka2015) modalities.
+Signal combination is crucial for human perception and our interaction with the environment. Our sensory systems comprise a variety of receptors and neural pathways that detect and process a wide range of stimuli, including sight, hearing, touch, and smell. To construct a coherent and comprehensive representation of our surroundings, the brain must filter out overlapping or redundant information and avoid excessively strong signals to prevent sensory overload. Therefore, in addition to additive processes, suppressive processes are also involved in signal combination. This suppression during signal combination has been investigated both within [e.g., vision, hearing, touch, @Baker2017; @Baker2020; @Biermann1998; @Gandevia1983] and between [e.g., visuo-tactile, audio-visual, @Ide2013; @Hidaka2015] modalities.
 
 In visual and auditory perception, psychophysical studies have shown that detection performance for binocular or binaural presentation is typically between a factor of $\sqrt{2}$ and 2 better than for monocular or monaural presentation [@Baker2018; @Baker2020; @Campbell1965]. This summation at threshold implies the existence of physiological mechanisms that combine signals across eyes or ears. Above threshold, detection performance improves when a weak fixed intensity (‘pedestal’) stimulus is added, a phenomenon known as facilitation. At higher intensity pedestals performance worsens, producing a masking effect. When plotted against pedestal intensity, the discrimination thresholds exhibit a "dipper" shape (see [@fig-methods]b). The facilitation and masking effects arise from the brain transducing physical signals into neural responses in a non-linear manner, and are observed for many sensory stimuli [reviewed by @Solomon2009].
 
@@ -1376,7 +1471,7 @@ All experiment code, raw data, processed data and analysis code are available at
 
 ## Summation and suppression effects on vibration thresholds
 
-In Experiment 1, participants were required to report which interval included the target stimulus. The average thresholds across 8 participants for each condition and pedestal level are shown in [@fig-dippers]a. A 4 (condition) $\times$ 8 (pedestal contrast) repeated measures ANOVA with Bonferroni-corrected post-hoc tests was used to assess statistical differences between factors. Results found significant main effects of condition (F = 285.66, $p$ < 0.01, $\eta_G^2$ = 0.67, Greenhouse-Geisser corrected) and pedestal level (F = 71.75, $p$ < 0.01, $\eta_G^2$ = 0.84, Greenhouse-Geisser corrected), as well as a significant interaction between the two factors (F = 28.19, $p$ < 0.01, $\eta_G^2$ = 0.43, Greenhouse-Geisser corrected). When plotting the thresholds against pedestal level, except for the dichodactyl condition (green diamonds), the other three conditions exhibited a dipper shape. Specifically, at low pedestal levels (0.5 to 2\%), thresholds decreased with increasing pedestal level, indicating a facilitation effect. When the pedestal level exceeded 2\%, thresholds increased due to a masking effect, resulting in approximately parallel handles across the pentadactyl (blue circles), dekadactyl (red squares) and half-dekadactyl (orange triangles) conditions. At detection threshold (pedestal level = 0\%), the threshold for the dekadactyl condition was around 1 dB lower than for the pentadactyl condition, with no significant difference. This weak summation between digits is lower than that typically attributed to physiological summation, suggesting the presence of probability summation instead [@Quick1974; @Tyler2000].
+In Experiment 1, participants were required to report which interval included the target stimulus. The average thresholds across 8 participants for each condition and pedestal level are shown in [@fig-dippers]a. A 4 (condition) $\times$ 8 (pedestal contrast) repeated measures ANOVA with Bonferroni-corrected post-hoc tests was used to assess statistical differences between factors. Results found significant main effects of condition (F = `r round(dipperstats[1,6],digits=2)`, $p$ < 0.01, $\eta_G^2$ = 0.67, Greenhouse-Geisser corrected) and pedestal level (F = 71.75, $p$ < 0.01, $\eta_G^2$ = 0.84, Greenhouse-Geisser corrected), as well as a significant interaction between the two factors (F = 28.19, $p$ < 0.01, $\eta_G^2$ = 0.43, Greenhouse-Geisser corrected). When plotting the thresholds against pedestal level, except for the dichodactyl condition (green diamonds), the other three conditions exhibited a dipper shape. Specifically, at low pedestal levels (0.5 to 2\%), thresholds decreased with increasing pedestal level, indicating a facilitation effect. When the pedestal level exceeded 2\%, thresholds increased due to a masking effect, resulting in approximately parallel handles across the pentadactyl (blue circles), dekadactyl (red squares) and half-dekadactyl (orange triangles) conditions. At detection threshold (pedestal level = 0\%), the threshold for the dekadactyl condition was around 1 dB lower than for the pentadactyl condition, with no significant difference. This weak summation between digits is lower than that typically attributed to physiological summation, suggesting the presence of probability summation instead [@Quick1974; @Tyler2000].
 
 ::: {.content-visible unless-format="docx"}
 ![Thresholds (a) and psychometric slope values (b) from Experiment 1. Data are averaged across N=8 participants, with shaded regions indicating ±1SE across participants.](Figures/dippers.pdf){#fig-dippers}
@@ -1415,9 +1510,9 @@ Our findings are consistent with previous studies [@Gescheider2002; @Gescheider2
 
 The results of the EEG experiment are consistent with those of the psychophysical study. Doubling the digits at the same frequency elicited stronger brain responses, though the increase was less than twofold. These findings correspond with previous studies, demonstrating that brain responses to concurrent stimuli at the same frequencies are stronger than those elicited by individual stimuli, suggesting a summation effect between inputs [@Hoechstetter2002; @Gandevia1983; @Ishibashi2000]. However, the observed response is less than the anticipated summed response, generally falling between 10\% and 50\% of the expected value, signifying a suppression effect between inputs [@Gandevia1983; @Ching-Liang1995]. In contrast, adding a different frequency or a masking stimulus resulted in a reduction in brain activity. These results provide further evidence of suppression between digits and are consistent with previous neuroimaging studies investigating the interaction between different frequencies [@Severens2010; @Pang2015]. For instance, @Severens2010 examined the suppression effect by vibrating two fingers at the same (18 Hz) or different frequencies (18 vs. 22 Hz, 18 vs. 26 Hz). Their findings revealed that the event-related potential (ERP) and SSSEP responses to simultaneous stimulation of both fingers were significantly lower than the linear summation of individual responses, with no difference in suppression based on frequency variation. This ruled out the hypothesis that suppression is due to neuronal occlusion from overlapping cortical areas, as stronger suppression would be expected at the same frequency if this were the case [@Gandevia1983; @Krause2001]. Instead, the results support the alternative explanation of lateral inhibition, where activation of one cortical neuron suppresses neighbouring neurons’ activity [@Laskin1979; @Brumberg1996; @DiCarlo1998; @Dykes1984; @Mirabella2001]. This inhibitory mechanism has been extensively observed in both animal and human studies [@Iwamura1978; @Iwamura1985; @Biermann1998; @Gandevia1983; @Hoechstetter2001].
 
-Another interesting finding is that we observed an intermediate suppression between vibrotactile stimuli compared with vision and audition. In visual perception, the forward-facing positioning of the eyes results in substantially overlapping visual fields. To merge these overlapping inputs from each eye (monocular vision) into a cohesive single image (binocular single vision), neural signals from both eyes must exhibit strong mutual inhibition to achieve ‘ocularity invariance’, ensuring the constancy of perception through one or both eyes [@Baker2007]. This is congruent with recent findings indicating that some neurons in the primary visual cortex are monocularly excitable, responding exclusively to the dominant eye, while binocular stimulation can suppress their activity [@Dougherty2019]. In contrast, the lateral placement of the ears results in minimal overlap between auditory inputs, reducing the necessity for strong interaural inhibition to integrate these signals into a unified percept, as is required in visual processing. Instead, binaural perception benefits from the comparison and integration of these disparate inputs to localise sound sources and discern subtle differences in timing and intensity [@Brugge1973; @Merzenich1973; @Benson1976]. Although prior evidence supports the existence of binaural suppression [@Tiihonen1989; @Gransier2017; @Baker2020], the extent of this suppression may differ depending on hemispheric laterality [@Kaneko2003; @Fujiki2002].
+Another interesting finding is that we observed an intermediate suppression between vibrotactile stimuli compared with vision and audition. In visual perception, the forward-facing positioning of the eyes results in substantially overlapping visual fields. To merge these overlapping inputs from each eye (monocular vision) into a cohesive single image (binocular single vision), neural signals from both eyes must exhibit strong mutual inhibition to achieve ‘ocularity invariance’, ensuring the constancy of perception through one or both eyes [@Baker2007]. This is congruent with recent findings indicating that some neurons in the primary visual cortex are monocularly excitable, responding exclusively to the dominant eye, while binocular stimulation can suppress their activity [@Dougherty2019]. In contrast, the lateral placement of the ears results in minimal overlap between auditory inputs, reducing the necessity for strong interaural inhibition to integrate these signals into a unified percept, as is required in visual processing. Instead, binaural perception benefits from the comparison and integration of these disparate inputs to localise sound sources and discern subtle differences in timing and intensity [@Brugge1973; @Benson1976]. Although prior evidence supports the existence of binaural suppression [@Tiihonen1989; @Gransier2017; @Baker2020], the extent of this suppression may differ depending on hemispheric laterality [@Kaneko2003; @Fujiki2002].
 
-Tactile perception involves the stimulation of each of the ten fingers individually, creating a more complex signal integration compared to binocular or binaural perception. The primary somatosensory cortex (SI) is divided into four distinct Brodmann areas (BA 3a, 3b, 1, and 2), each responsible for mapping different parts of the body surface. Evidence suggests that receptive field of each finger is arranged in somatotopic order in BA 3b, while in BA 1/2, they are arranged in clusters with large overlap [@Kurth2000; @Grause2001; @Ishibashi2000]. Although SSSEPs reflect activity across the whole scalp, EEG [@Pang2015; @Arslanova2022] and MEG [@Ishibashi2000; @Hoechstetter2001; @Tame2015] studies also support overlapping finger representations in SI. Notably, the overlap between adjacent fingers is greater than between non-adjacent ones, indicating that suppression between fingers depends on their spatial proximity. Additionally, hand posture plays a significant role in signal summation and suppression. For instance, a study [@Hamada2003] found that a "CLOSE" posture (thumb and index finger positioned as if to pick something up) produces stronger suppression than an "OPEN" posture (hand fully open).  In the present study, finger posture and inter-finger distance were controlled by placing the fingertips in a fixed position on solenoids, suggesting that the amount of suppression may vary depending on finger arrangements or hand posture. Furthermore, studies have shown that blind individuals exhibit stronger somatosensory evoked potentials compared to sighted individuals, potentially indicating an expanded S1 region [@Giriyappa2009; @Burton2004]. This suggests that use-dependent cortical reorganisation may occur across different body regions, and the amount of suppression may vary depending on the body part involved.
+Tactile perception involves the stimulation of each of the ten fingers individually, creating a more complex signal integration compared to binocular or binaural perception. The primary somatosensory cortex (SI) is divided into four distinct Brodmann areas (BA 3a, 3b, 1, and 2), each responsible for mapping different parts of the body surface. Evidence suggests that receptive field of each finger is arranged in somatotopic order in BA 3b, while in BA 1/2, they are arranged in clusters with large overlap [@Kurth2000; @Krause2001; @Ishibashi2000]. Although SSSEPs reflect activity across the whole scalp, EEG [@Pang2015; @Arslanova2022] and MEG [@Ishibashi2000; @Hoechstetter2001; @Tame2015] studies also support overlapping finger representations in SI. Notably, the overlap between adjacent fingers is greater than between non-adjacent ones, indicating that suppression between fingers depends on their spatial proximity. Additionally, hand posture plays a significant role in signal summation and suppression. For instance, a study [@Hamada2003] found that a "CLOSE" posture (thumb and index finger positioned as if to pick something up) produces stronger suppression than an "OPEN" posture (hand fully open).  In the present study, finger posture and inter-finger distance were controlled by placing the fingertips in a fixed position on solenoids, suggesting that the amount of suppression may vary depending on finger arrangements or hand posture. Furthermore, studies have shown that blind individuals exhibit stronger somatosensory evoked potentials compared to sighted individuals, potentially indicating an expanded S1 region [@Giriyappa2009; @Burton2004]. This suggests that use-dependent cortical reorganisation may occur across different body regions, and the amount of suppression may vary depending on the body part involved.
 
 
 # References
