@@ -1304,13 +1304,13 @@ r.dipperstats = anova_results
 r.dipperstats2dp = anova_results.round(2)
 r.dipperstats3dp = anova_results.round(3)
 
-r.dipperF1 <- dipperstats2dp[0,5]
-r.dipperF2 <- dipperstats2dp[1,5]
-r.dipperF3 <- dipperstats2dp[2,5]
+r.dipperF1 = dipperstats2dp[0,5]
+r.dipperF2 = dipperstats2dp[1,5]
+r.dipperF3 = dipperstats2dp[2,5]
 
-r.dipperng1 <- dipperstats3dp[0,8]
-r.dipperng2 <- dipperstats3dp[1,8]
-r.dipperng3 <- dipperstats3dp[2,8]
+r.dipperng1 = dipperstats3dp[0,8]
+r.dipperng2 = dipperstats3dp[1,8]
+r.dipperng3 = dipperstats3dp[2,8]
 
 posthoc = pairwise_ttests(dv='threshold',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
 print(posthoc)
