@@ -1300,9 +1300,9 @@ pd.set_option('display.width', None)        # Adjust the display width to show t
 
 print(anova_results)
 
-r.dipperstats = anova_results
-r.dipperstats2dp = anova_results.round(2)
-r.dipperstats3dp = anova_results.round(3)
+dipperstats = np.array(anova_results)
+dipperstats2dp = np.array(anova_results.round(2))
+dipperstats3dp = np.array(anova_results.round(3))
 
 r.dipperF1 = dipperstats2dp[0,5]
 r.dipperF2 = dipperstats2dp[1,5]
