@@ -28,4 +28,6 @@ RUN install2.r –error \
 --deps TRUE \
 quarto \
 reticulate \
-osfr
+osfr \
+rstatix \
+tinytex

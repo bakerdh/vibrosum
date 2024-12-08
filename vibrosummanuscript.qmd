@@ -24,7 +24,7 @@ fitmodels <- 0
 plotfigures <- 0
 
 # install R packages
-packagelist <- c('utils','knitr','reticulate','osfr','tinytex')
+packagelist <- c('utils','knitr','reticulate','osfr','tinytex','rstatix')
 
 missingpackages <- packagelist[!packagelist %in% installed.packages()[,1]]
 if (length(missingpackages)>0){install.packages(missingpackages)}
@@ -1305,15 +1305,15 @@ posthoc = pairwise_ttests(dv='threshold',  within=['level','condition'], padjust
 print(posthoc)
 r.dipperposthocs = posthoc
 
-# EEGF1 = np.load("local/allF1.npy")   # 30*6*5
-# EEGF2 = np.load("local/allF2.npy")   # 30*6*5
-# meanF1 = np.mean(EEGF1, axis=0) #6*5
-# monbinratios = meanF1[1,:]/meanF1[0,:]
-# monbinratiosdB = 20*np.log10(monbinratios)
-# meanratiodB = np.round(np.mean(monbinratiosdB), 2)
-# r.meanratio = np.round(10**(meanratiodB/20), 2)
-# 
-# 
+EEGF1 = np.load("local/allF1.npy")   # 30*6*5
+EEGF2 = np.load("local/allF2.npy")   # 30*6*5
+meanF1 = np.mean(EEGF1, axis=0) #6*5
+monbinratios = meanF1[1,:]/meanF1[0,:]
+monbinratiosdB = 20*np.log10(monbinratios)
+meanratiodB = np.round(np.mean(monbinratiosdB), 2)
+r.meanratio = np.round(10**(meanratiodB/20), 2)
+
+
 # merged_array1 = EEGF1.reshape(900, 1)              
 #                 
 # subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
@@ -1383,6 +1383,16 @@ r.dipperposthocs = posthoc
 
 
 ```
+
+```{r roundstats}
+#| include: false
+
+dipperstats[,6] <- round(dipperstats[,6],digits=2)
+dipperstats[,9] <- round(dipperstats[,9],digits=3)
+dipperstats[,8] <- p_format(dipperstats[,8],digits=3,accuracy=0.001,leading.zero=TRUE)
+
+```
+
 
 # Abstract
 
@@ -1471,7 +1481,7 @@ All experiment code, raw data, processed data and analysis code are available at
 
 ## Summation and suppression effects on vibration thresholds
 
-In Experiment 1, participants were required to report which interval included the target stimulus. The average thresholds across 8 participants for each condition and pedestal level are shown in [@fig-dippers]a. A 4 (condition) $\times$ 8 (pedestal contrast) repeated measures ANOVA with Bonferroni-corrected post-hoc tests was used to assess statistical differences between factors. Results found significant main effects of condition (F = `r round(dipperstats[1,6],digits=2)`, $p$ < 0.01, $\eta_G^2$ = 0.67, Greenhouse-Geisser corrected) and pedestal level (F = 71.75, $p$ < 0.01, $\eta_G^2$ = 0.84, Greenhouse-Geisser corrected), as well as a significant interaction between the two factors (F = 28.19, $p$ < 0.01, $\eta_G^2$ = 0.43, Greenhouse-Geisser corrected). When plotting the thresholds against pedestal level, except for the dichodactyl condition (green diamonds), the other three conditions exhibited a dipper shape. Specifically, at low pedestal levels (0.5 to 2\%), thresholds decreased with increasing pedestal level, indicating a facilitation effect. When the pedestal level exceeded 2\%, thresholds increased due to a masking effect, resulting in approximately parallel handles across the pentadactyl (blue circles), dekadactyl (red squares) and half-dekadactyl (orange triangles) conditions. At detection threshold (pedestal level = 0\%), the threshold for the dekadactyl condition was around 1 dB lower than for the pentadactyl condition, with no significant difference. This weak summation between digits is lower than that typically attributed to physiological summation, suggesting the presence of probability summation instead [@Quick1974; @Tyler2000].
+In Experiment 1, participants were required to report which interval included the target stimulus. The average thresholds across 8 participants for each condition and pedestal level are shown in [@fig-dippers]a. A 4 (condition) $\times$ 8 (pedestal contrast) repeated measures ANOVA with Bonferroni-corrected post-hoc tests was used to assess statistical differences between factors. Results found significant main effects of condition (F = `r dipperstats[1,6]`, $p$ `r dipperstats[1,8]`, $\eta_G^2$ = `r dipperstats[1,9]`, Greenhouse-Geisser corrected) and pedestal level (F = `r dipperstats[2,6]`, $p$ `r dipperstats[2,8]`, $\eta_G^2$ = `r dipperstats[2,9]`, Greenhouse-Geisser corrected), as well as a significant interaction between the two factors (F = `r dipperstats[3,6]`, $p$ `r dipperstats[3,8]`, $\eta_G^2$ = `r dipperstats[3,9]`, Greenhouse-Geisser corrected). When plotting the thresholds against pedestal level, except for the dichodactyl condition (green diamonds), the other three conditions exhibited a dipper shape. Specifically, at low pedestal levels (0.5 to 2\%), thresholds decreased with increasing pedestal level, indicating a facilitation effect. When the pedestal level exceeded 2\%, thresholds increased due to a masking effect, resulting in approximately parallel handles across the pentadactyl (blue circles), dekadactyl (red squares) and half-dekadactyl (orange triangles) conditions. At detection threshold (pedestal level = 0\%), the threshold for the dekadactyl condition was around 1 dB lower than for the pentadactyl condition, with no significant difference. This weak summation between digits is lower than that typically attributed to physiological summation, suggesting the presence of probability summation instead [@Quick1974; @Tyler2000].
 
 ::: {.content-visible unless-format="docx"}
 ![Thresholds (a) and psychometric slope values (b) from Experiment 1. Data are averaged across N=8 participants, with shaded regions indicating ±1SE across participants.](Figures/dippers.pdf){#fig-dippers}
