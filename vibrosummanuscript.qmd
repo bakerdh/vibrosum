@@ -2,7 +2,7 @@
 title: "Signal combination in vibration perception"
 author:
   - name: Shasha Wei$^{1,2}$
-  - name: Alex R. Wade$^{1}$
+  - name: Alex R. Wade$^{1,3}$
   - name: Catherine E.J. Preston$^{1}$
   - name: \& Daniel H. Baker$^{1}$
 format: pdf
@@ -14,8 +14,8 @@ execute:
 ---
 
 $^1$Department of Psychology, University of York, UK\
-$^2$Corresponding author, email: mfv507\@york.ac.uk
-
+$^2$Corresponding author, email: mfv507\@york.ac.uk\
+$^3$York Biomedical Research Institute, University of York, UK
 ```{r initialiseenvironment}
 #| include: false
 
