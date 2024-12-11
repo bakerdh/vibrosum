@@ -36,6 +36,7 @@ use_python("/usr/bin/python3.10")
 ```
 
 ```{python setup}
+#| include: false
 
 # import packages etc.
 
@@ -62,6 +63,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 ```
 
 ```{r checkfordata}
+#| include: false
 
 # check if raw data are available and download if required
 
@@ -665,6 +667,7 @@ if r.plotfigures:
 ```
 
 ```{python fitdippers}
+#| include: false
 
 if r.fitmodels:
     fitpath = "local/fits1/"
@@ -960,6 +963,7 @@ if r.fitmodels:
 ```
 
 ```{python fitEEG}
+#| include: false
 
 if r.fitmodels:
     fitpath = "local/fits2/"
@@ -1118,6 +1122,7 @@ if r.fitmodels:
 ```
 
 ```{python plotmodelling}
+#| include: false
 
 if r.plotfigures:
     pedcontrasts = np.arange(-12,31,6)
@@ -1261,6 +1266,7 @@ if r.plotfigures:
 ```
 
 ```{python dostats}
+#| include: false
 
 row = pd.read_csv('local/8subjects.csv')
 ex1data = row[['Subject','Condition', 'PedestalContrast','TargetContrast','IsCorrect']].values
@@ -1325,73 +1331,104 @@ meanratiodB = np.round(np.mean(monbinratiosdB), 2)
 r.meanratio = np.round(10**(meanratiodB/20), 2)
 
 
-# merged_array1 = EEGF1.reshape(900, 1)              
-#                 
-# subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
-# conditions = np.tile(np.repeat(np.arange(1, 7), 5), 30).reshape(-1, 1)     
-# levels = np.tile(np.arange(1, 6), 180).reshape(-1, 1)         
-# 
-# # Combine all data into one array
-# alldata_array1 = np.hstack((subs, conditions, levels, merged_array1))
-# 
-# df = pd.DataFrame(alldata_array1, columns=['subs', 'condition', 'level', 'amplitudes'])
-# df['subs'] = df['subs'].astype(int)
-# df['condition'] = df['condition'].astype(int)
-# df['level'] = df['level'].astype(int)
-# 
-# ###ANOVA F1
-# aov_results1 = pg.rm_anova(dv='amplitudes', within=['condition', 'level'], subject='subs', data=df, detailed=True)
-# pd.set_option('display.max_columns', None)  # Show all columns
-# pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
-# print(aov_results1)
-# #########post-hoc test
-# posthocF1= pairwise_ttests(dv='amplitudes',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
-# #posthocF1.to_csv('C:/documents/meanEEGresp/posthocF1.csv', index=False)
-# print(posthocF1)
-# 
-# 
-# 
-# 
-# merged_array2 = EEGF2.reshape(900, 1)              
-#                 
-# subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
-# conditions = np.tile(np.repeat(np.arange(1, 7), 5), 30).reshape(-1, 1)     
-# levels = np.tile(np.arange(1, 6), 180).reshape(-1, 1)         
-# 
-# # Combine all data into one array
-# alldata_array2 = np.hstack((subs, conditions, levels, merged_array2))
-# 
-# df = pd.DataFrame(alldata_array2, columns=['subs', 'condition', 'level', 'amplitudes'])
-# df['subs'] = df['subs'].astype(int)
-# df['condition'] = df['condition'].astype(int)
-# df['level'] = df['level'].astype(int)
-# 
-# ###ANOVA F2
-# aov_results2 = pg.rm_anova(dv='amplitudes', within=['condition', 'level'], subject='subs', data=df, detailed=True)
-# pd.set_option('display.max_columns', None)  # Show all columns
-# pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
-# print(aov_results2)
-# #########post-hoc test
-# posthocF2= pairwise_ttests(dv='amplitudes',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
-# #posthocF2.to_csv('C:/documents/meanEEGresp/posthocF2.csv', index=False)
-# print(posthocF2)                
-#    
-#     
-# ### one-way ANOVA on Crossdichodactyl condition
-# Crossdichodactyl_dataF2 = dataF2[:,5,:]
-# merged_array3 = Crossdichodactyl_dataF2.reshape(150, 1)
-# subs = np.repeat(np.arange(1, 31), 5).reshape(-1, 1)
-# levels = np.tile(np.arange(1, 6), 30).reshape(-1, 1)
-# alldata_array3 = np.hstack((subs, levels, merged_array3))
-# 
-# df = pd.DataFrame(alldata_array3, columns=['subs', 'level', 'amplitudes'])
-# df['subs'] = df['subs'].astype(int)
-# df['level'] = df['level'].astype(int)
-# aov_results3 = pg.rm_anova(dv='amplitudes', within=['level'], subject='subs', data=df, detailed=True, effsize='np2')
-# pd.set_option('display.max_columns', None)  # Show all columns
-# pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
-# print('Crossdichodactyl:', aov_results3)
+EEGF1 = EEGF1[0:30,:,:]
+merged_array1 = EEGF1.reshape(np.prod(EEGF1.shape), 1)
 
+subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
+conditions = np.tile(np.repeat(np.arange(1, 7), 5), 30).reshape(-1, 1)
+levels = np.tile(np.arange(1, 6), 180).reshape(-1, 1)
+
+# Combine all data into one array
+alldata_array1 = np.hstack((subs, conditions, levels, merged_array1))
+
+df = pd.DataFrame(alldata_array1, columns=['subs', 'condition', 'level', 'amplitudes'])
+df['subs'] = df['subs'].astype(int)
+df['condition'] = df['condition'].astype(int)
+df['level'] = df['level'].astype(int)
+
+###ANOVA F1
+aov_results1 = pg.rm_anova(dv='amplitudes', within=['condition', 'level'], subject='subs', data=df, detailed=True)
+pd.set_option('display.max_columns', None)  # Show all columns
+pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
+print(aov_results1)
+#########post-hoc test
+posthocF1= pairwise_ttests(dv='amplitudes',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
+#posthocF1.to_csv('C:/documents/meanEEGresp/posthocF1.csv', index=False)
+print(posthocF1)
+
+EEGF1stats = np.array(aov_results1)
+EEGF1stats2dp = np.array(aov_results1.round(2))
+EEGF1stats3dp = np.array(aov_results1.round(3))
+
+r.EEGF1_F1 = EEGF1stats2dp[0,5]
+r.EEGF1_F2 = EEGF1stats2dp[1,5]
+r.EEGF1_F3 = EEGF1stats2dp[2,5]
+
+r.EEGF1_ng1 = EEGF1stats3dp[0,8]
+r.EEGF1_ng2 = EEGF1stats3dp[1,8]
+r.EEGF1_ng3 = EEGF1stats3dp[2,8]
+
+
+
+EEGF2 = EEGF2[0:30,:,:]
+merged_array2 = EEGF2.reshape(np.prod(EEGF2.shape), 1)
+
+subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
+conditions = np.tile(np.repeat(np.arange(1, 7), 5), 30).reshape(-1, 1)
+levels = np.tile(np.arange(1, 6), 180).reshape(-1, 1)
+
+# Combine all data into one array
+alldata_array2 = np.hstack((subs, conditions, levels, merged_array2))
+
+df = pd.DataFrame(alldata_array2, columns=['subs', 'condition', 'level', 'amplitudes'])
+df['subs'] = df['subs'].astype(int)
+df['condition'] = df['condition'].astype(int)
+df['level'] = df['level'].astype(int)
+
+###ANOVA F2
+aov_results2 = pg.rm_anova(dv='amplitudes', within=['condition', 'level'], subject='subs', data=df, detailed=True)
+pd.set_option('display.max_columns', None)  # Show all columns
+pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
+print(aov_results2)
+#########post-hoc test
+posthocF2= pairwise_ttests(dv='amplitudes',  within=['level','condition'], padjust='bonf', data=df, subject='subs')
+#posthocF2.to_csv('C:/documents/meanEEGresp/posthocF2.csv', index=False)
+print(posthocF2)
+
+EEGF2stats = np.array(aov_results2)
+EEGF2stats2dp = np.array(aov_results2.round(2))
+EEGF2stats3dp = np.array(aov_results2.round(3))
+
+r.EEGF2_F1 = EEGF2stats2dp[0,5]
+r.EEGF2_F2 = EEGF2stats2dp[1,5]
+r.EEGF2_F3 = EEGF2stats2dp[2,5]
+
+r.EEGF2_ng1 = EEGF2stats3dp[0,8]
+r.EEGF2_ng2 = EEGF2stats3dp[1,8]
+r.EEGF2_ng3 = EEGF2stats3dp[2,8]
+
+
+### one-way ANOVA on Crossdichodactyl condition
+Crossdichodactyl_dataF2 = EEGF2[:,5,:]
+merged_array3 = Crossdichodactyl_dataF2.reshape(150, 1)
+subs = np.repeat(np.arange(1, 31), 5).reshape(-1, 1)
+levels = np.tile(np.arange(1, 6), 30).reshape(-1, 1)
+alldata_array3 = np.hstack((subs, levels, merged_array3))
+
+df = pd.DataFrame(alldata_array3, columns=['subs', 'level', 'amplitudes'])
+df['subs'] = df['subs'].astype(int)
+df['level'] = df['level'].astype(int)
+aov_results3 = pg.rm_anova(dv='amplitudes', within=['level'], subject='subs', data=df, detailed=True, effsize='np2')
+pd.set_option('display.max_columns', None)  # Show all columns
+pd.set_option('display.width', None)        # Adjust the display width to show the full DataFrame
+print('Crossdichodactyl:', aov_results3)
+
+EEGF2Bstats = np.array(aov_results3)
+EEGF2Bstats2dp = np.array(aov_results3.round(2))
+EEGF2Bstats3dp = np.array(aov_results3.round(3))
+
+r.EEGF2B_F1 = EEGF2Bstats2dp[0,4]
+r.EEGF2B_ng1 = EEGF2Bstats3dp[0,6]
 
 ```
 
@@ -1504,9 +1541,9 @@ The average amplitude spectra and scalp distributions for four conditions of Exp
 
 In the pentadactyl and dekadactyl conditions, where a 26 Hz stimulus was used, we observed a peak at 26 Hz in both [@fig-EEG]a and b, with a stronger activity at the fronto-central region in the dekadactyl condition. A similar pattern was observed in the cross-pentadactyl condition, where a 23 Hz stimulus resulted in a peak at 23 Hz ([@fig-EEG]c). In the cross-dekadactyl condition ([@fig-EEG]d), when two different frequencies were simultaneously presented, peaks were observed at the original frequencies (26 Hz (F1) and 23 Hz (F2)) as well as at specific intermodulation frequencies (20 Hz ($2 \times F2 - F1$) and 29 Hz ($2 \times F1 - F2$)). Additionally, the distribution of activity across the scalp was similar in the cross-dichodactyl and cross-dekadactyl conditions.
 
-Responses as a function of vibration intensity showed monotonic increases for most conditions ([@fig-EEG]e,f). Two 6 (condition) $\times$ 5 (intensity) repeated measures ANOVAs with Bonferroni-corrected post-hoc tests were conducted on the EEG amplitudes at each frequency separately. At 26 Hz, significant main effects of condition (F = 86.61, $p$ < 0.001, $\eta_G^2$ = 0.40, Greenhouse-Geisser corrected), intensity level (F = 144.86, $p$ < 0.001, $\eta_G^2$ = 0.39, Greenhouse-Geisser corrected), and a significant interaction effect (F = 18.10, $p$ < 0.001, $\eta_G^2$ = 0.17) were observed. In the pentadactyl condition (blue circles), EEG amplitudes increased monotonically with increasing intensity level ([@fig-EEG]e). In the dekadactyl condition (red squares), doubling the inputs led to significantly stronger responses at intensity levels of 8\% ($p$ < 0.01), 16\% ($p$ < 0.001), and 32\% ($p$ < 0.001). Compared to the pentadactyl condition, average amplitudes increased by a factor of `r meanratio` across all intensity levels, indicating a sub-linear summation effect. In the dichodactyl condition (green triangles), the target stimulus was presented to Set A, while a fixed vibration at 32\% of maximum intensity was presented to Set B, resulting in a high baseline response, and responses that increased with intensity level. At higher intensity levels (32 to 64\%), the responses in the dichodactyl condition approximated those in the dekadactyl condition. In the cross-dekadactyl (pink pentagons) and cross-dichodactyl (black diamonds) conditions, two different frequencies were presented simultaneously. Instead of summing, they suppressed each other, leading to weaker responses compared to the pentadactyl condition, with a significant difference observed between the pentadactyl and cross-dichodactyl conditions at the 16\% intensity level ($p$ < 0.001).
+Responses as a function of vibration intensity showed monotonic increases for most conditions ([@fig-EEG]e,f). Two 6 (condition) $\times$ 5 (intensity) repeated measures ANOVAs with Bonferroni-corrected post-hoc tests were conducted on the EEG amplitudes at each frequency separately. At 26 Hz, significant main effects of condition (F = `r EEGF1_F1`, $p$ < 0.001, $\eta_G^2$ = `r EEGF1_ng1`, Greenhouse-Geisser corrected), intensity level (F = `r EEGF1_F2`, $p$ < 0.001, $\eta_G^2$ = `r EEGF1_ng2`, Greenhouse-Geisser corrected), and a significant interaction effect (F = `r EEGF1_F3`, $p$ < 0.001, $\eta_G^2$ = `r EEGF1_ng3`) were observed. In the pentadactyl condition (blue circles), EEG amplitudes increased monotonically with increasing intensity level ([@fig-EEG]e). In the dekadactyl condition (red squares), doubling the inputs led to significantly stronger responses at intensity levels of 8\% ($p$ < 0.01), 16\% ($p$ < 0.001), and 32\% ($p$ < 0.001). Compared to the pentadactyl condition, average amplitudes increased by a factor of `r meanratio` across all intensity levels, indicating a sub-linear summation effect. In the dichodactyl condition (green triangles), the target stimulus was presented to Set A, while a fixed vibration at 32\% of maximum intensity was presented to Set B, resulting in a high baseline response, and responses that increased with intensity level. At higher intensity levels (32 to 64\%), the responses in the dichodactyl condition approximated those in the dekadactyl condition. In the cross-dekadactyl (pink pentagons) and cross-dichodactyl (black diamonds) conditions, two different frequencies were presented simultaneously. Instead of summing, they suppressed each other, leading to weaker responses compared to the pentadactyl condition, with a significant difference observed between the pentadactyl and cross-dichodactyl conditions at the 16\% intensity level ($p$ < 0.001).
 
-At 23 Hz ([@fig-EEG]f), we also found significant main effects of condition (F = 146.40, $p$ < 0.001, $\eta_G^2$ = 0.55, Greenhouse-Geisser corrected), intensity level (F = 72.44, $p$ < 0.001, $\eta_G^2$ = 0.12), as well as a significant interaction effect (F = 38.37, $p$ < 0.001, $\eta_G^2$ = 0.37, Greenhouse-Geisser corrected). Further evidence of suppression was observed in the cross-dekadactyl condition (pink pentagons), where simultaneous 23 Hz and 26 Hz stimuli led to significantly reduced responses compared to the cross-pentadactyl condition (yellow triangles) at intensity levels of 16\%, 32\%, and 64\% (all $p$ < 0.001). In the cross-dichodactyl condition (black diamonds), a stronger initial response to the mask at 4\% target level decreased with increasing target intensity levels (F = 8.85, $p$ < 0.01, $\eta_G^2$ = 0.13, Greenhouse-Geisser corrected), indicating a masking effect and suppression between digits. As expected, the three conditions involving only a 26 Hz vibration did not show any measurable responses at 23 Hz ([@fig-EEG]f).
+At 23 Hz ([@fig-EEG]f), we also found significant main effects of condition (F = `r EEGF2_F1`, $p$ < 0.001, $\eta_G^2$ = `r EEGF2_ng1`, Greenhouse-Geisser corrected), intensity level (F = `r EEGF2_F2`, $p$ < 0.001, $\eta_G^2$ = `r EEGF2_ng2`), as well as a significant interaction effect (F = `r EEGF2_F3`, $p$ < 0.001, $\eta_G^2$ = `r EEGF2_ng3`, Greenhouse-Geisser corrected). Further evidence of suppression was observed in the cross-dekadactyl condition (pink pentagons), where simultaneous 23 Hz and 26 Hz stimuli led to significantly reduced responses compared to the cross-pentadactyl condition (yellow triangles) at intensity levels of 16\%, 32\%, and 64\% (all $p$ < 0.001). In the cross-dichodactyl condition (black diamonds), a stronger initial response to the mask at 4\% target level decreased with increasing target intensity levels (F = `r EEGF2B_F1`, $p$ < 0.001, $\eta_G^2$ = `r EEGF2B_ng1`, Greenhouse-Geisser corrected), indicating a masking effect and suppression between digits. As expected, the three conditions involving only a 26 Hz vibration did not show any measurable responses at 23 Hz ([@fig-EEG]f).
 
 ## Computational modelling results
 
