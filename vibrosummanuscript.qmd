@@ -590,10 +590,10 @@ if r.plotfigures:
     ax5.text(0.03, 0.23+0.05, '(e)', fontsize=80,  transform=fig.transFigure)
     ax6.text(0.51, 0.23+0.05, '(f)', fontsize=80,  transform=fig.transFigure)
     
-    plot_PSD_with_topomap(Penta_spec, 'Pentadactyl', topomapF1 [:61, 0, 4], info, ax1)
-    plot_PSD_with_topomap(Deka_spec, 'Dekadactyl', topomapF1 [:61, 1, 4], info, ax2)
-    plot_PSD_with_topomap(CrossP_spec, 'Cross-Pentadactyl', topomapF2 [:61, 3, 4], info, ax3)
-    plot_PSD_with_topomap(CrossDeka_spec, 'Cross-Dekadactyl', topomapF1 [:61, 4, 4], info, ax4)
+    plot_PSD_with_topomap(fPenta_spec, 'Pentadactyl', topomapF1 [:61, 0, 4], info, ax1)
+    plot_PSD_with_topomap(fDeka_spec, 'Dekadactyl', topomapF1 [:61, 1, 4], info, ax2)
+    plot_PSD_with_topomap(fCrossP_spec, 'Cross-Pentadactyl', topomapF2 [:61, 3, 4], info, ax3)
+    plot_PSD_with_topomap(fCrossDeka_spec, 'Cross-Dekadactyl', topomapF1 [:61, 4, 4], info, ax4)
 
     ################################################## Plot contrast response function at 26Hz
     fillx = np.concatenate([x, x[::-1]])
