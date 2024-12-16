@@ -1499,31 +1499,31 @@ See @tbl-parametertable
 #| tbl-cap: 'Summary of fitted model parameters.'
 
 tabledata <- matrix(0,nrow=3,ncol=11)
-tabledata[1,3] <- model1params_p
-tabledata[1,4] <- model1params_q
-tabledata[1,5] <- model1params_m
-tabledata[1,6] <- model1params_S
-tabledata[1,7] <- model1params_Z
-tabledata[1,8] <- model1params_w
-tabledata[1,9] <- model1params_k
-tabledata[1,10] <- model1params_y
+tabledata[1,3] <- as.numeric(model1params_p)
+tabledata[1,4] <- as.numeric(model1params_q)
+tabledata[1,5] <- as.numeric(model1params_m)
+tabledata[1,6] <- as.numeric(model1params_S)
+tabledata[1,7] <- as.numeric(model1params_Z)
+tabledata[1,8] <- as.numeric(model1params_w)
+tabledata[1,9] <- as.numeric(model1params_k)
+tabledata[1,10] <- as.numeric(model1params_y)
 
-tabledata[2,3] <- model2params_p
-tabledata[2,4] <- model2params_q
-tabledata[2,5] <- model2params_m
-tabledata[2,6] <- model2params_S
-tabledata[2,7] <- model2params_Z
-tabledata[2,8] <- model2params_w
-tabledata[2,9] <- model2params_k
-tabledata[2,10] <- model2params_y
+tabledata[2,3] <- as.numeric(model2params_p)
+tabledata[2,4] <- as.numeric(model2params_q)
+tabledata[2,5] <- as.numeric(model2params_m)
+tabledata[2,6] <- as.numeric(model2params_S)
+tabledata[2,7] <- as.numeric(model2params_Z)
+tabledata[2,8] <- as.numeric(model2params_w)
+tabledata[2,9] <- as.numeric(model2params_k)
+tabledata[2,10] <- as.numeric(model2params_y)
 
-tabledata[3,2] <- EEGparams_R
-tabledata[3,5] <- EEGparams_m
-tabledata[3,6] <- EEGparams_S
-tabledata[3,8] <- EEGparams_w
-tabledata[3,9] <- EEGparams_k
+tabledata[3,2] <- as.numeric(EEGparams_R)
+tabledata[3,5] <- as.numeric(EEGparams_m)
+tabledata[3,6] <- as.numeric(EEGparams_S)
+tabledata[3,8] <- as.numeric(EEGparams_w)
+tabledata[3,9] <- as.numeric(EEGparams_k)
 
-tabledata[,11] <- c(model1rms, model2rms, EEGRMS)
+tabledata[,11] <- c(as.numeric(model1rms), as.numeric(model2rms), as.numeric(EEGRMS))
 tabledata <- data.frame(tabledata)
 tabledata[,1] <- c('Linear summation', 'Minkowski summation', 'EEG model')
 tabledata[1:2,2] <- '-'
