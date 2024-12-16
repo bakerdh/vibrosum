@@ -1340,17 +1340,37 @@ r.EEGF2B_ng1 = EEGF2Bstats3dp[0,7]
 
 data = np.load('local/EEGmodels.npz')
 temp = data['modelparams']
-r.EEGparams = np.round(temp,3)  
+r.EEGparams_m = np.round(temp[0],3)  
+r.EEGparams_S = np.round(temp[2],3)  
+r.EEGparams_w = np.round(temp[3],3)  
+r.EEGparams_k = np.round(temp[4],3)  
+r.EEGparams_R = np.round(temp[1],3)  
+
+
 temp = data['modelRMS']
 r.EEGRMS = np.round(temp,3)
 
 data = np.load('local/dippermodels.npz')
 temp = data['model1params']
-r.model1params = np.round(temp,3)
+r.model1params_p = np.round(temp[0],3)
+r.model1params_q = np.round(temp[1],3)
+r.model1params_m = np.round(temp[2],3)
+r.model1params_S = np.round(temp[3],3)
+r.model1params_Z = np.round(temp[4],3)
+r.model1params_w = np.round(temp[5],3)
+r.model1params_k = np.round(temp[6],3)
+r.model1params_y = np.round(temp[7],3)
 temp = data['model1rms']
 r.model1rms = np.round(temp,2)
 temp = data['model2params']
-r.model2params = np.round(temp,3)
+r.model2params_p = np.round(temp[0],3)
+r.model2params_q = np.round(temp[1],3)
+r.model2params_m = np.round(temp[2],3)
+r.model2params_S = np.round(temp[3],3)
+r.model2params_Z = np.round(temp[4],3)
+r.model2params_w = np.round(temp[5],3)
+r.model2params_k = np.round(temp[6],3)
+r.model2params_y = np.round(temp[7],3)
 temp = data['model2rms']
 r.model2rms = np.round(temp,2)
 
@@ -1479,13 +1499,30 @@ See @tbl-parametertable
 #| tbl-cap: 'Summary of fitted model parameters.'
 
 tabledata <- matrix(0,nrow=3,ncol=11)
-for (n in 1:8){tabledata[1,n+2] <- model1params[n]}
-for (n in 1:8){tabledata[2,n+2] <- model2params[n]}
-tabledata[3,2] <- EEGparams[2]
-tabledata[3,5] <- EEGparams[1]
-tabledata[3,6] <- EEGparams[3]
-tabledata[3,8] <- EEGparams[4]
-tabledata[3,9] <- EEGparams[5]
+tabledata[1,3] <- model1params_p
+tabledata[1,4] <- model1params_q
+tabledata[1,5] <- model1params_m
+tabledata[1,6] <- model1params_S
+tabledata[1,7] <- model1params_Z
+tabledata[1,8] <- model1params_w
+tabledata[1,9] <- model1params_k
+tabledata[1,10] <- model1params_y
+
+tabledata[2,3] <- model2params_p
+tabledata[2,4] <- model2params_q
+tabledata[2,5] <- model2params_m
+tabledata[2,6] <- model2params_S
+tabledata[2,7] <- model2params_Z
+tabledata[2,8] <- model2params_w
+tabledata[2,9] <- model2params_k
+tabledata[2,10] <- model2params_y
+
+tabledata[3,2] <- EEGparams_R
+tabledata[3,5] <- EEGparams_m
+tabledata[3,6] <- EEGparams_S
+tabledata[3,8] <- EEGparams_w
+tabledata[3,9] <- EEGparams_k
+
 tabledata[,11] <- c(model1rms, model2rms, EEGRMS)
 tabledata <- data.frame(tabledata)
 tabledata[,1] <- c('Linear summation', 'Minkowski summation', 'EEG model')
@@ -1500,17 +1537,6 @@ kableExtra::kbl(tabledata, align='lcccccccccc',booktabs=TRUE,linesep='',escape =
 
 ```
 
-`r EEGRMS`
-
-`r model1rms`
-
-`r model2rms`
-
-`r EEGparams`
-
-`r model1params`
-
-`r model2params`
 
 
 ::: {.content-visible unless-format="docx"}
