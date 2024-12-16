@@ -1479,9 +1479,9 @@ See @tbl-parametertable
 #| tbl-cap: 'Summary of fitted model parameters.'
 
 tabledata <- matrix(0,nrow=3,ncol=11)
-tabledata[1,3:10] <- model1params[1:8]
-tabledata[2,3:10] <- model2params[1:8]
-tabledata[3,c(2,5,6,8,9)] <- EEGparams[c(2,1,3,4,5)]
+tabledata[1,3:10] <- as.vector(model1params[1:8])
+tabledata[2,3:10] <- as.vector(model2params[1:8])
+tabledata[3,c(2,5,6,8,9)] <- as.vector(EEGparams[c(2,1,3,4,5)])
 tabledata[,11] <- c(model1rms, model2rms, EEGRMS)
 tabledata <- data.frame(tabledata)
 tabledata[,1] <- c('Linear summation', 'Minkowski summation', 'EEG model')
