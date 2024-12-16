@@ -30,4 +30,5 @@ quarto \
 reticulate \
 osfr \
 rstatix \
-tinytex
+tinytex \
+kableExtra
