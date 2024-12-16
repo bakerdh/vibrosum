@@ -16,6 +16,7 @@ execute:
 $^1$Department of Psychology, University of York, UK\
 $^2$Corresponding author, email: mfv507\@york.ac.uk\
 $^3$York Biomedical Research Institute, University of York, UK
+
 ```{r initialiseenvironment}
 #| include: false
 
@@ -77,12 +78,9 @@ if (!file.exists('local/allthresh.npz')){osf_download(osffiles[which(osffiles$na
 if (!file.exists('local/allslope.npz')){osf_download(osffiles[which(osffiles$name=='allslope.npz'),],'local/',progress=TRUE)}
 if (!file.exists('local/allF1.npy')){osf_download(osffiles[which(osffiles$name=='allF1.npy'),],'local/',progress=TRUE)}
 if (!file.exists('local/allF2.npy')){osf_download(osffiles[which(osffiles$name=='allF2.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/allpreddB.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/allpreddB2.npy')){osf_download(osffiles[which(osffiles$name=='allpreddB2.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/EEG_modelparams.npy')){osf_download(osffiles[which(osffiles$name=='EEG_modelparams.npy'),],'local/',progress=TRUE)}
+if (!file.exists('local/dippermodels.npz')){osf_download(osffiles[which(osffiles$name=='dippermodels.npz'),],'local/',progress=TRUE)}
+if (!file.exists('local/EEGmodels.npz')){osf_download(osffiles[which(osffiles$name=='EEGmodels.npz'),],'local/',progress=TRUE)}
 if (!file.exists('local/EEG_allresp.npy')){osf_download(osffiles[which(osffiles$name=='EEG_allresp.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/model1Param.npy')){osf_download(osffiles[which(osffiles$name=='model1Param.npy'),],'local/',progress=TRUE)}
-if (!file.exists('local/model2Param.npy')){osf_download(osffiles[which(osffiles$name=='model2Param.npy'),],'local/',progress=TRUE)}
 
 
 if ((plotfigures+fitmodels)>0){
@@ -243,7 +241,7 @@ if r.plotfigures:
     for text in leg.get_texts():
         text.set_fontsize(18)
     fig = plt.gcf() 
-    plt.text(0.085, 0.92, 'A', fontsize=40, fontweight='bold', va='top', ha='left', transform=fig.transFigure)
+    plt.text(0.085, 0.92, '(a)', fontsize=40, va='top', ha='left', transform=fig.transFigure)
     ax = plt.gca()
     for spine in ax.spines.values():
         spine.set_linewidth(2.5) 
@@ -278,7 +276,7 @@ if r.plotfigures:
     plt.ylabel('Weibull ' + r"$\mathrm{\beta}$", fontsize=30)
     plt.subplots_adjust(wspace=0.6)
     fig = plt.gcf() 
-    plt.text(0.58, 0.92, 'B', fontsize=40, fontweight='bold', va='top', ha='left', transform=fig.transFigure)
+    plt.text(0.58, 0.92, '(b)', fontsize=40, va='top', ha='left', transform=fig.transFigure)
     
     ax = plt.gca()
     for spine in ax.spines.values():
@@ -295,89 +293,64 @@ if r.plotfigures:
 if r.doanalysis:
     raw_path = "local/rawEEGdata/"   # path containing raw data 
     nsubjs = 31
-    allsubjsF1 = np.zeros((nsubjs,61,6,5), dtype=complex)
-    allsubjsF2 = np.zeros((nsubjs,61,6,5), dtype=complex)
-    selectSpec = np.zeros((nsubjs,6, 6, 5, 10001), dtype=complex)
+    electrodenames = np.array(['F1', 'F2', 'Fz', 'FC1', 'FC2', 'FCz'])  # electrodes of interest
+    allsubjsF1 = np.zeros((nsubjs,61,6,5), dtype='complex')
+    allsubjsF2 = np.zeros((nsubjs,61,6,5), dtype='complex')
+    selectSpec = np.zeros((nsubjs,len(electrodenames),6,5,10001), dtype='complex')
+
+    F1 = 26
+    F2 = 23
+    F1index = F1*10
+    F2index = F2*10
+    tmin = 1.0
+    tmax = 11.0
+    fmin = 1.0
+    fmax = 50.0
+    reject_criteria = None   #dict(eeg=200e-6)
+    legaltriggers = np.concatenate([range(11,16),range(21,26),range(31,36),range(41,46),range(51,56),range(61,66),range(71,76),range(81,86),range(91,96),range(101,106),range(111,116),range(121,126)])
+    eventList = ['Mon/L/C1', 'Mon/L/C2', 'Mon/L/C3', 'Mon/L/C4', 'Mon/L/C5',
+                  'Mon/R/C1', 'Mon/R/C2', 'Mon/R/C3', 'Mon/R/C4', 'Mon/R/C5',
+                  'Bin/LR/C1', 'Bin/LR/C2', 'Bin/LR/C3', 'Bin/LR/C4', 'Bin/LR/C5',
+                  'Bin/RL/C1', 'Bin/RL/C2', 'Bin/RL/C3', 'Bin/RL/C4', 'Bin/RL/C5',
+                  'Dich/L/C1', 'Dich/L/C2', 'Dich/L/C3', 'Dich/L/C4', 'Dich/L/C5',
+                  'Dich/R/C1', 'Dich/R/C2', 'Dich/R/C3', 'Dich/R/C4', 'Dich/R/C5',
+                  'XMon/L/C1', 'XMon/L/C2', 'XMon/L/C3', 'XMon/L/C4', 'XMon/L/C5',
+                  'XMon/R/C1', 'XMon/R/C2', 'XMon/R/C3', 'XMon/R/C4', 'XMon/R/C5',
+                  'XBin/LR/C1', 'XBin/LR/C2', 'XBin/LR/C3', 'XBin/LR/C4', 'XBin/LR/C5',
+                  'XBin/RL/C1', 'XBin/RL/C2', 'XBin/RL/C3', 'XBin/RL/C4', 'XBin/RL/C5',
+                  'XDich/L/C1', 'XDich/L/C2', 'XDich/L/C3', 'XDich/L/C4', 'XDich/L/C5',
+                  'XDich/R/C1', 'XDich/R/C2', 'XDich/R/C3', 'XDich/R/C4', 'XDich/R/C5']
+    levellist = ["C1","C2","C3","C4","C5"]
+    condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
     
     # loop through each individual participant, calculate the spectra and amplitude for 6 conditions and 5 intensity levels
     for p in range(0,nsubjs):
         filename = raw_path + "P" + str(p+1) + '_EEG.set'
-        
         raw = mne.io.read_raw_eeglab(filename,preload=True)
-    
-        print(raw.info)
         raw.drop_channels(["HEOG", "VEOG", "M1", "M2","Fpz"])
         ANT_montage = mne.channels.make_standard_montage("standard_1020")
         raw.set_montage(ANT_montage)
         info = raw.info
         events, event_id = mne.events_from_annotations(raw)
-        ch_names = raw.ch_names
-    
-        legaltriggers = np.concatenate([range(11,16),range(21,26),range(31,36),range(41,46),range(51,56),range(61,66),range(71,76),range(81,86),range(91,96),range(101,106),range(111,116),range(121,126)])
-    
+        ch_names = np.array(raw.ch_names)
+        selectE = np.where(np.isin(ch_names,electrodenames))[0]   # find indices of electrodes of interest
+
         extracted_values = []
-    
+        
         for trigger in legaltriggers:
-            trigger_str = str(trigger)  # convert trigger to string for comparison
-            if trigger_str in event_id:
-                extracted_values.append(event_id[trigger_str])
-        #print(extracted_values)
-    
-        eventList = ['Mon/L/C1', 'Mon/L/C2', 'Mon/L/C3', 'Mon/L/C4', 'Mon/L/C5',
-                     'Mon/R/C1', 'Mon/R/C2', 'Mon/R/C3', 'Mon/R/C4', 'Mon/R/C5',
-                     'Bin/LR/C1', 'Bin/LR/C2', 'Bin/LR/C3', 'Bin/LR/C4', 'Bin/LR/C5',
-                     'Bin/RL/C1', 'Bin/RL/C2', 'Bin/RL/C3', 'Bin/RL/C4', 'Bin/RL/C5',
-                     'Dich/L/C1', 'Dich/L/C2', 'Dich/L/C3', 'Dich/L/C4', 'Dich/L/C5',
-                     'Dich/R/C1', 'Dich/R/C2', 'Dich/R/C3', 'Dich/R/C4', 'Dich/R/C5',
-                     'XMon/L/C1', 'XMon/L/C2', 'XMon/L/C3', 'XMon/L/C4', 'XMon/L/C5',
-                     'XMon/R/C1', 'XMon/R/C2', 'XMon/R/C3', 'XMon/R/C4', 'XMon/R/C5',
-                     'XBin/LR/C1', 'XBin/LR/C2', 'XBin/LR/C3', 'XBin/LR/C4', 'XBin/LR/C5',
-                     'XBin/RL/C1', 'XBin/RL/C2', 'XBin/RL/C3', 'XBin/RL/C4', 'XBin/RL/C5',
-                     'XDich/L/C1', 'XDich/L/C2', 'XDich/L/C3', 'XDich/L/C4', 'XDich/L/C5',
-                     'XDich/R/C1', 'XDich/R/C2', 'XDich/R/C3', 'XDich/R/C4', 'XDich/R/C5']
-    
+          trigger_str = str(trigger)  # convert trigger to string for comparison
+          if trigger_str in event_id:
+            extracted_values.append(event_id[trigger_str])
+        
         event_dict = dict(zip(eventList, extracted_values))
-    
-        reject_criteria = None   #dict(eeg=200e-6)
-    
-        allepochs = mne.Epochs(raw, events, event_id=event_dict, tmin=1, tmax=11, baseline=(1,11), reject=reject_criteria, preload=True)
-        meanepoch = allepochs.average()
-    
-        tmin = 1.0
-        tmax = 11.0
-        fmin = 1.0
-        fmax = 50.0
-        sfreq = allepochs.info["sfreq"]
-    
-        spectrum = allepochs.compute_psd(
-            "welch",
-            n_fft=int(sfreq * (tmax - tmin)),
-            n_overlap=0,
-            n_per_seg=None,
-            tmin=tmin,
-            tmax=tmax,
-            fmin=fmin,
-            fmax=fmax,
-            window="boxcar",
-            verbose=False,
-        )
-        psds, freqs = spectrum.get_data(return_freqs=True)  # get frequency
-    
-        levellist = ["C1","C2","C3","C4","C5"]
-        condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
-    
-        allblocksF1 = np.zeros((61,len(condlist),len(levellist)), dtype=complex)
-        allblocksF2 = np.zeros((61,len(condlist),len(levellist)), dtype=complex)
-    
-        lineColor = ['b', 'r', 'g','y','m', 'k']
-        labels= ['Pentadactyl','Dekadactyl','Dichodactyl','Cross-Pentadactyl','Cross-Dekadactyl','Cross-Dichodactyl']
-        legend_elements = []
-        x = [12,18,24,30,36]
-    
-        spectra = np.zeros((len([4, 8, 9, 34, 35, 38]), len(condlist), len(levellist), 10001))  
-        y_26Hz = []
-        y_23Hz = []
-        selectE = [4, 8, 9, 34, 35, 38] ##########  select electrodes: F1, F2, FZ, FC1, FC2, FCZ
+        
+        allepochs = mne.Epochs(raw, events, event_id=event_dict, tmin=tmin, tmax=tmax, baseline=(tmin,tmax), reject=reject_criteria, preload=True)
+        
+        allblocksF1 = np.zeros((61,len(condlist),len(levellist)), dtype='complex')
+        allblocksF2 = np.zeros((61,len(condlist),len(levellist)), dtype='complex')
+        
+        spectra = np.zeros((len(selectE), len(condlist), len(levellist), 10001))
+        
         for c in range(len(condlist)):
             for l in range(len(levellist)):
                 condstr = str(condlist[c]) + '/' + str(levellist[l])
@@ -389,46 +362,48 @@ if r.doanalysis:
                     spec = fft(d[electrode,:])/10001
                     # Check if the electrode is in the selected electrodes list
                     if electrode in selectE:
-                        idx = selectE.index(electrode)
-                        spectra[idx, c, l, :] = np.abs(spec)  # store all frequencies from 6 electrodes
+                        idx = np.where(np.isin(selectE,electrode))[0]
+                        spectra[idx, c, l, :] = spec  # store all frequencies from 6 electrodes
     
-                    allblocksF1[electrode,c,l] = np.abs(spec[260])
-                    allblocksF2[electrode,c,l] = np.abs(spec[230])
-                y_26Hz.append(allblocksF1[35,c,l]) # Electrodes 35, conditions, contrasts
-                y_23Hz.append(allblocksF2[35,c,l])
+                    allblocksF1[electrode,c,l] = spec[F1index]
+                    allblocksF2[electrode,c,l] = spec[F2index]               
+
+        selectSpec[p,:,:,:,:] = spectra     # store spectra: participant X electrode X condition X level X frequency
     
-    
-        selectSpec[p, :, :, :, :] = spectra     # store spectra: participant X electrode X condition X level X frequency
-    
-        allsubjsF1[p,0:61,0:6,0:5] = allblocksF1  ##amplitudes at 26Hz: participant X electrode X condition X level
-        allsubjsF2[p,0:61,0:6,0:5] = allblocksF2   ##amplitude form 23Hz: participant X electrode X condition X level
+        allsubjsF1[p,:,:,:] = allblocksF1   ##amplitudes at 26Hz: participant X electrode X condition X level
+        allsubjsF2[p,:,:,:] = allblocksF2   ##amplitude form 23Hz: participant X electrode X condition X level
         
-    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1, allsubjsF2=allsubjsF2, selectSpec=selectSpec, info=info, freqs=freqs)
+    np.savez('local/processedEEGdata.npz', allsubjsF1=allsubjsF1, allsubjsF2=allsubjsF2, selectSpec=selectSpec, selectE=selectE, info=info)
 
-    info.save('local/montage-info.fif')  # save montage info in correct format
-
+    info.save('local/montage-info.fif')  # save montage info in correct format        
+        
+        
 ```
 
 ```{python plotEEGdata}
 #| include: false
 
 if r.plotfigures:
+    excludelist = 13
+    mask = np.ones(31, dtype=bool)
+    mask[excludelist] = False
+    freqs = np.linspace(0,49,491)
     x = [12,18,24,30,36]
     eegdata = np.load('local/processedEEGdata.npz',allow_pickle=True)
     allsubjsF1 = eegdata['allsubjsF1']
     allsubjsF2 = eegdata['allsubjsF2']
     selectSpec = eegdata['selectSpec']
+    selectE = eegdata['selectE']
     info = mne.io.read_info('local/montage-info.fif')
-    freqs = eegdata['freqs']
     
     levellist = ["C1","C2","C3","C4","C5"]
     condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
     
     # Row data for plotting spectra
-    Deka_spec = np.abs(np.mean(selectSpec [:, :, 1, 4,:], axis=1))   #### average across 6 electrodes
-    Penta_spec = np.abs(np.mean(selectSpec [:, :, 0, 4,:], axis=1))
-    CrossP_spec = np.abs(np.mean(selectSpec [:, :, 3, 4,:], axis=1))
-    CrossDeka_spec = np.abs(np.mean(selectSpec [:, :, 4, 4,:], axis=1))
+    Deka_spec = np.mean(np.abs(selectSpec[mask, :, 1, 4,:]), axis=1)   #### average across 6 electrodes
+    Penta_spec = np.mean(np.abs(selectSpec[mask, :, 0, 4,:]), axis=1)
+    CrossP_spec = np.mean(np.abs(selectSpec[mask, :, 3, 4,:]), axis=1)
+    CrossDeka_spec = np.mean(np.abs(selectSpec[mask, :, 4, 4,:]), axis=1)
     
     ####  Do outlier rejection,  calculate the data for plotting topmap
     topomapF1 = np.zeros((61,len(condlist),len(levellist)))
@@ -437,81 +412,38 @@ if r.plotfigures:
     for el in range(61):
         for cond in range(6):
             for lev in range(5):
-                temp = np.abs(allsubjsF1[0:31,el,cond,lev])
-                temp = temp[temp>0]
-                s = np.std(temp)
-                m = np.mean(temp)
-                temp = temp[np.abs(temp-m)<(3*s)]
+                temp = np.abs(allsubjsF1[mask,el,cond,lev])
                 topomapF1[el,cond,lev] = np.mean(temp)
-    
-                temp = np.abs(allsubjsF2[0:31,el,cond,lev])
-                temp = temp[temp>0]
-                s = np.std(temp)
-                m = np.mean(temp)
-                temp = temp[np.abs(temp-m)<(3*s)]
+                temp = np.abs(allsubjsF2[mask,el,cond,lev])
                 topomapF2[el,cond,lev] = np.mean(temp)
     
     ##### Remove one outlier, the rest of 30 participants are used to calculate mean amplitude across conditions, levels
     
-    subjsF1 = np.zeros((31, 61, len(condlist), len(levellist)))  #*np.nan
-    subjsF2 = np.zeros((31, 61, len(condlist), len(levellist)))  #*np.nan
+    subjsF1 = np.zeros((sum(mask), 61, len(condlist), len(levellist)))
+    subjsF2 = np.zeros((sum(mask), 61, len(condlist), len(levellist)))
     
     for el in range(61):
         for cond in range(6):
             for lev in range(5):
                 # F1 data
-                temp = np.abs(allsubjsF1[:, el, cond, lev])
-                temp = temp[temp > 0]
-                s = np.std(temp)
-                m = np.mean(temp)
-                filtered_indices = np.where(np.abs(temp - m) < (3 * s))[0]
-                for subj in range(len(filtered_indices)):
-                    if (subj < len(filtered_indices)): subjsF1[subj, el, cond, lev] = temp[filtered_indices[subj]]
-                    else: subjsF1[subj, el, cond, lev] = np.nan
-    
+                subjsF1[:, el, cond, lev] = np.abs(allsubjsF1[mask, el, cond, lev])
                 # F2 data
-                temp = np.abs(allsubjsF2[:, el, cond, lev])
-                temp = temp[temp > 0]
-                s = np.std(temp)
-                m = np.mean(temp)
-                filtered_indices = np.where(np.abs(temp - m) < (3 * s))[0]
-                for subj in range(len(filtered_indices)):
-                    if (subj < len(filtered_indices)): subjsF2[subj, el, cond, lev] = temp[filtered_indices[subj]]
-                    else: subjsF2[subj, el, cond, lev] = np.nan
-    
+                subjsF2[:, el, cond, lev]  = np.abs(allsubjsF2[mask, el, cond, lev])
+
     ######################## filtered  F1, F2   contrast response data
-    #########################  F1
-    selectE = [4, 8, 9, 34, 35, 38]
-    EsubjsF1= subjsF1[:,selectE, :, :]
-    dataF1=np.nanmean(EsubjsF1, axis =1) #average across 6 electrodes
+    EsubjsF1 = subjsF1[:,selectE, :, :]
+    dataF1 = np.nanmean(EsubjsF1, axis=1) #average across 6 electrodes
+    meanF1 = np.mean(dataF1,axis=0)
+    SEF1 = np.std(dataF1,axis=0)/np.sqrt(sum(mask))
     
-    mask = np.any(np.isnan(dataF1), axis=(1, 2))
-    filtered_dataF1 = dataF1[~mask]   # remove that individual data if it contains NAN, now have 30 subjs (30,6,5)
-    meanF1= np.mean(filtered_dataF1, axis=0)   # (6,5)
-    ###calculate standard error
-    n = filtered_dataF1.shape[0]
-    stdF1 = np.std(filtered_dataF1 , axis=0, ddof=1)
-    SEF1 = stdF1 / np.sqrt(n)
+    EsubjsF2 = subjsF2[:,selectE, :, :]
+    dataF2 = np.nanmean(EsubjsF2, axis=1) #average across 6 electrodes
+    meanF2 = np.mean(dataF2,axis=0)
+    SEF2 = np.std(dataF2,axis=0)/np.sqrt(sum(mask))
     
-    ############################# F2
-    EsubjsF2= subjsF2[:,selectE, :, :]
-    dataF2=np.nanmean(EsubjsF2, axis =1) #average across 6 electrodes
-    
-    mask2 = np.any(np.isnan(dataF2), axis=(1, 2))
-    filtered_dataF2 = dataF2[~mask2]   # remove that individual data if it contains NAN, now have 30 subjs (30,6,5)
-    meanF2= np.mean(filtered_dataF2, axis=0)
-    ###calculate standard error
-    stdF2 = np.std(filtered_dataF2 , axis=0, ddof=1)
-    SEF2 = stdF2/ np.sqrt(n)
-    
-    np.save('local/allF1.npy', filtered_dataF1)
-    np.save('local/allF2.npy', filtered_dataF2)
-    
-    fPenta_spec = Penta_spec[~mask]  #### spectra with one outliner is removed,  now it has (30, 10001) dimension
-    fDeka_spec = Deka_spec[~mask]
-    fCrossP_spec = CrossP_spec[~mask]
-    fCrossDeka_spec = CrossDeka_spec[~mask]
-    
+    np.save('local/allF1.npy', dataF1)
+    np.save('local/allF2.npy', dataF2)
+
     #######################################     plot spectrum + topomaps
     
     fig=plt.figure(figsize=(30,45))
@@ -553,15 +485,14 @@ if r.plotfigures:
             spine.set_linewidth(line_weight)
     
     freq_range = range(11, 471)
-    def plot_PSD_with_topomap(spectr, label, topomap_data, info, ax):
-        spectrum = spectr
-        psds_mean = spectrum.mean(axis=0)[list(freq_range)]
-        psds_std = spectrum.std(axis=0)[list(freq_range)]
-        nsubjs = psds_std.shape[0]
-        print(nsubjs)
+    def plot_PSD_with_topomap(spectrum, label, topomap_data, info, ax):
+        spectrum = spectrum[:,list(freq_range)]
+        nsubjs = spectrum.shape[0]
+        psds_mean = spectrum.mean(axis=0)
+        psds_std = spectrum.std(axis=0)
         psds_sr = psds_std / np.sqrt(nsubjs)
-        ax.plot(freqs[list(freq_range)] - 1, psds_mean, label=label)
-        ax.fill_between(freqs[list(freq_range)] - 1, psds_mean - psds_sr, psds_mean + psds_sr, color="b", alpha=0.2)
+        ax.plot(freqs[list(freq_range)], psds_mean, label=label)
+        ax.fill_between(freqs[list(freq_range)], psds_mean - psds_sr, psds_mean + psds_sr, color="b", linewidth=0, alpha=0.2)
         ax.set_title(f'{label}', fontsize=35)
         ax.set_ylabel('Amplitude (μV)', fontsize=35)
         ax.set_xlabel('Frequency (Hz)', fontsize=35)
@@ -590,10 +521,10 @@ if r.plotfigures:
     ax5.text(0.03, 0.23+0.05, '(e)', fontsize=80,  transform=fig.transFigure)
     ax6.text(0.51, 0.23+0.05, '(f)', fontsize=80,  transform=fig.transFigure)
     
-    plot_PSD_with_topomap(fPenta_spec, 'Pentadactyl', topomapF1 [:61, 0, 4], info, ax1)
-    plot_PSD_with_topomap(fDeka_spec, 'Dekadactyl', topomapF1 [:61, 1, 4], info, ax2)
-    plot_PSD_with_topomap(fCrossP_spec, 'Cross-Pentadactyl', topomapF2 [:61, 3, 4], info, ax3)
-    plot_PSD_with_topomap(fCrossDeka_spec, 'Cross-Dekadactyl', topomapF1 [:61, 4, 4], info, ax4)
+    plot_PSD_with_topomap(Penta_spec, 'Pentadactyl', topomapF1[:61, 0, 4], info, ax1)
+    plot_PSD_with_topomap(Deka_spec, 'Dekadactyl', topomapF1[:61, 1, 4], info, ax2)
+    plot_PSD_with_topomap(CrossP_spec, 'Cross-Pentadactyl', topomapF2[:61, 3, 4], info, ax3)
+    plot_PSD_with_topomap(CrossDeka_spec, 'Cross-Dekadactyl', topomapF1[:61, 4, 4], info, ax4)
 
     ################################################## Plot contrast response function at 26Hz
     fillx = np.concatenate([x, x[::-1]])
@@ -601,7 +532,7 @@ if r.plotfigures:
     
     labels= ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl','Cross-Dekadactyl','Cross-Dichodactyl']
     condlist = ['Mon','Bin','Dich','XMon','XBin','XDich']
-    lineColor = ['b', 'r', 'g','y','m', 'k']
+    lineColor = ['b', 'r', 'g', 'y', 'm', 'k']
     markers = ['o', 's', '^', '<', 'p', 'd']
     ###########################
     legend_elements = []
@@ -676,15 +607,14 @@ if r.fitmodels:
         os.makedirs(fitpath)
     
     data = np.load('local/allthresh.npz')
-    allthresh= data['allthresh']
-    meanthresh=np.mean(allthresh, axis=0)
+    allthresh = data['allthresh']
+    meanthresh = np.mean(allthresh, axis=0)
     SEthresh = np.std(allthresh, axis=0, ddof=1) / np.sqrt(8)
     
     datatofit = meanthresh
     ntotalsimplexfits = 100
     pedcontrasts = np.arange(-12,31,6)
     pedlist = pedcontrasts
-    
     
     def getmodelresp(p, L, R):
     
@@ -694,8 +624,6 @@ if r.fitmodels:
         resp = (bs**p[0]) / (p[4] + bs**p[1])
     
         return resp
-    
-    
     
     def discriminate(p, pedC, cond):
     
@@ -842,12 +770,11 @@ if r.fitmodels:
     allp = p
     allparams = finalout
     
-    #np.save(os.path.join(fitpath, 'simplexfitsM1.npz'), {'allp': allp, 'allrms': allrms, 'allparams': allparams, 'ntotalsimplexfits': ntotalsimplexfits})
     model1params = allp
     model1rms = allrms
     
     ####Generate prediction data
-    pedlist = np.arange(-12, 40)
+    pedlist = np.arange(-12, 40, 0.1)
     pedlevelsC = 10 ** (pedlist / 20)
     pedlevelsC[0] = 0
     
@@ -855,14 +782,10 @@ if r.fitmodels:
     for cond in range(1,5):
         for pedlev in range(len(pedlist)):
             allpred[cond-1, pedlev] = discriminate(allp, pedlevelsC[pedlev], cond)
-    
-    
+
     allpreddB = 20 * np.log10(allpred)
     
-    np.save('local/allpreddB.npy', allpreddB )
-    np.save('local/model1Param.npy', model1params )
-    
-    model1rms=round(model1rms,2)
+    model1rms = round(model1rms,2)
     print(model1rms)
     print(model1params)
     
@@ -940,7 +863,7 @@ if r.fitmodels:
     model2params = allp2
     model2rms = allrms2
     
-    pedlist = np.arange(-12, 40)
+    pedlist = np.arange(-12, 40, 0.1)
     pedlevelsC = 10 ** (pedlist / 20)
     pedlevelsC[0] = 0
     
@@ -950,15 +873,14 @@ if r.fitmodels:
         for pedlev in range(len(pedlist)):
             allpred2[cond-1, pedlev] = discriminate(allp2, pedlevelsC[pedlev], cond)
     
-    
     allpreddB2 = 20 * np.log10(allpred2)
-    
-    np.save('local/allpreddB2.npy', allpreddB2 )
-    np.save('local/model2Param.npy', model2params )
     
     model2rms=round(model2rms,2)
     print(model2rms)
     print(model2params)
+    
+    np.savez('local/dippermodels.npz', model1params=model1params, allpreddB=allpreddB, model1rms=model1rms, model2params=model2params, allpreddB2=allpreddB2, model2rms=model2rms)
+
 
 ```
 
@@ -971,20 +893,11 @@ if r.fitmodels:
         os.makedirs(fitpath)
     
     EEGF1 = np.load("local/allF1.npy")   # 30*6*5
-    meanF1 = np.mean(EEGF1 , axis=0)  #6*5
-    n = meanF1.shape[0]
-    stdF1 = np.std(EEGF1, axis=0, ddof=1)
-    SEF1 = stdF1/ np.sqrt(n)  #6*5
-    
+    meanF1 = np.mean(EEGF1, axis=0)  #6*5
     EEGF2 = np.load("local/allF2.npy")   # 30*6*5
-    meanF2 = np.mean(EEGF2 , axis=0)  #6*5
-    n = meanF2.shape[0]
-    stdF2 = np.std(EEGF2, axis=0, ddof=1)
-    SEF2 = stdF2/ np.sqrt(n)
-    
+    meanF2 = np.mean(EEGF2, axis=0)  #6*5
     mean = np.concatenate((meanF1, meanF2) , axis=0)  #12*5 , mean data of 26 and 23Hz
-    SE = np.concatenate((SEF1, SEF2) , axis=0)  #12*5
-    
+
     def get_twoStage_model1(A, B, C, D, p):  # [A, B]= 26Hz, [C, D]= 23Hz
     
         p = np.power(10, p)
@@ -1006,47 +919,41 @@ if r.fitmodels:
         respB = bsB + p[1]
         return respB
     
-    def get_twoStage_modelresp(p):
-    #
-        contrastsdB=np.arange(12,37,6 )
+    def get_twoStage_modelresp(p, contrastsdB):
+
         contrastsC = 10**(contrastsdB / 20)
-        contrastsC[0] = 0
     
         responses = np.array([
             # 26 Hz
-            get_twoStage_model1(contrastsC, 0, 0, 0, p ),  # Pentedactyl_resp
+            get_twoStage_model1(contrastsC, 0, 0, 0, p),  # Pentedactyl_resp
             get_twoStage_model1(contrastsC, contrastsC, 0, 0, p),  # Dekadactyl_resp
-            get_twoStage_model1(contrastsC, contrastsC[3], 0, 0, p),  # Dichodactyl_resp
+            get_twoStage_model1(contrastsC, 32, 0, 0, p),  # Dichodactyl_resp
             get_twoStage_model1(0, 0, contrastsC, 0, p),  # crossPentedactyl_resp
             get_twoStage_model1(contrastsC, 0, 0, contrastsC, p),  # crossDekadactyl_resp
-            get_twoStage_model1(contrastsC, 0, 0, contrastsC[3],  p),  # crossDichodactyl_resp
+            get_twoStage_model1(contrastsC, 0, 0, 32,  p),  # crossDichodactyl_resp
             ## 23 Hz
-            get_twoStage_model2(contrastsC, 0, 0, 0, p ),  # Pentedactyl_resp
+            get_twoStage_model2(contrastsC, 0, 0, 0, p),  # Pentedactyl_resp
             get_twoStage_model2(contrastsC, contrastsC, 0, 0, p),  # Dekadactyl_resp
-            get_twoStage_model2(contrastsC, contrastsC[3], 0, 0, p),  # Dichodactyl_resp
+            get_twoStage_model2(contrastsC, 32, 0, 0, p),  # Dichodactyl_resp
             get_twoStage_model2(0, 0, contrastsC, 0, p),  # crossPentedactyl_resp
             get_twoStage_model2(contrastsC, 0, 0, contrastsC, p),  # crossDekadactyl_resp
-            get_twoStage_model2(contrastsC, 0, 0, contrastsC[3],  p),  # crossDichodactyl_resp
+            get_twoStage_model2(contrastsC, 0, 0, 32,  p),  # crossDichodactyl_resp
     
         ])
     
         return responses   #12*5
     
-    
-    
-    
     def geterror(p):
-        modelpredictions = get_twoStage_modelresp(p)   # 6*5
-        rms = np.sqrt(np.mean((modelpredictions - mean )**2))
+        contrastsdB = np.arange(12,37,6)
+        modelpredictions = get_twoStage_modelresp(p, contrastsdB)   # 6*5
+        rms = np.sqrt(np.mean((modelpredictions - mean)**2))
     
         return rms
-    
-    
+
     allp = None
     allrms = None
     ntotalsimplexfits = 100
     nfits = ntotalsimplexfits
-    
     
     def runfitting():
         initial_params = [1.5, 0.05, 20, 0.5, 0.2]+ 0.01 * np.random.randn(5)
@@ -1058,7 +965,6 @@ if r.fitmodels:
             print("Optimization successful", sout.x)
             allout = np.concatenate(([geterror(sout.x)], sout.x))
     
-    
             filecount = 1
             while True:
                 filepath = f"{fitpath}M1f{filecount}.npz"
@@ -1068,7 +974,6 @@ if r.fitmodels:
                 filecount += 1
             return allout
         else:
-    
             print("Optimization did not converge.")
             #raise ValueError("Optimization failed")
     
@@ -1080,13 +985,10 @@ if r.fitmodels:
         if os.path.exists(os.path.join(fitpath, f'M1f{n}.npz')):
             nfits -= 1
     
-    
     if nfits > 0:
         for i in range(nfits):
             result = runfitting()
             allparams[i] = result
-    
-    
     
     finalout = np.zeros((ntotalsimplexfits, 6))
     for n in range(1, ntotalsimplexfits + 1):
@@ -1094,31 +996,27 @@ if r.fitmodels:
         if os.path.exists(filepath):
             data = np.load(filepath)
             allout = data['allout']
-    
             finalout[n - 1, :] = allout
-    
-    
     
     i = np.argmin(finalout[:, 0])
     p = finalout[i, 1:6]
     
-    allresp = get_twoStage_modelresp(p)
+    contrastsfine = np.arange(12,37,0.1)
+    allresp = get_twoStage_modelresp(p, contrastsfine)
     
     allrms = finalout[i, 0]
-    allp = 10** p
+    allp = 10**p
     allparams = finalout
     
     modelparams = allp
     print("model 1 optimized p:", modelparams)
     
     modelRMS = allrms
-    modelRMS=round(modelRMS,2)
+    modelRMS = round(modelRMS,2)
     print("model 1 rms:", modelRMS)
     
-    np.save('local/EEG_allresp.npy', allresp )
-    np.save('local/EEG_modelparams.npy', modelparams )
+    np.savez('local/EEGmodels.npz', allresp=allresp, modelparams=modelparams, modelRMS=modelRMS)
     
-
 ```
 
 ```{python plotmodelling}
@@ -1126,14 +1024,22 @@ if r.fitmodels:
 
 if r.plotfigures:
     pedcontrasts = np.arange(-12,31,6)
-    pedlist = np.arange(-12, 40)
+    pedlist = np.arange(-12, 40, 0.1)
     
     data = np.load('local/allthresh.npz')
     allthresh = data['allthresh'] 
-    meanthresh=np.mean(allthresh, axis=0) #4*8
+    meanthresh = np.mean(allthresh, axis=0) #4*8
     SEthresh = np.std(allthresh, axis=0, ddof=1) / np.sqrt(8) 
     
-    fig=plt.figure(figsize=(20,15))
+    data = np.load('local/dippermodels.npz')
+    model1params = data['model1params']
+    allpreddB = data['allpreddB']
+    model1rms = data['model1rms']
+    model2params = data['model2params']
+    allpreddB2 = data['allpreddB2']
+    model2rms = data['model2rms']
+    
+    fig=plt.figure(figsize=(20,19))
     ax1=fig.add_subplot(2,2,1)
     ax2=fig.add_subplot(2,2,2)
     ax3=fig.add_subplot(2,2,3)
@@ -1143,7 +1049,6 @@ if r.plotfigures:
     new_pos = [pos.x0 + 0.08, pos.y0, pos.width, pos.height] ###adjust position
     ax2.set_position(new_pos)
     
-    
     pos = ax3.get_position()
     new_pos = [pos.x0, pos.y0-0.05, pos.width, pos.height]
     ax3.set_position(new_pos)
@@ -1152,16 +1057,15 @@ if r.plotfigures:
     new_pos = [pos.x0 + 0.08, pos.y0-0.05, pos.width, pos.height]
     ax4.set_position(new_pos)
     
-    
     axes = [ax1, ax2, ax3, ax4]
     line_weight = 2
     for ax in axes:
         for spine in ax.spines.values(): spine.set_linewidth(line_weight)
 
-    ax1.text(0.05, 0.870, 'A', fontsize=40,  transform=fig.transFigure, fontweight='bold')
-    ax2.text(0.55, 0.870, 'B', fontsize=40,  transform=fig.transFigure, fontweight='bold')
-    ax3.text(0.05, 0.400, 'C', fontsize=40,  transform=fig.transFigure, fontweight='bold')
-    ax4.text(0.55, 0.400, 'D', fontsize=40,  transform=fig.transFigure, fontweight='bold')
+    ax1.text(0.05, 0.870, '(a)', fontsize=40,  transform=fig.transFigure)
+    ax2.text(0.55, 0.870, '(b)', fontsize=40,  transform=fig.transFigure)
+    ax3.text(0.05, 0.400, '(c)', fontsize=40,  transform=fig.transFigure)
+    ax4.text(0.55, 0.400, '(d)', fontsize=40,  transform=fig.transFigure)
     
     
     #%% Plot fitting result of psychophysical data
@@ -1169,36 +1073,30 @@ if r.plotfigures:
     collist = [ 'blue', 'red', 'orange', 'darkgreen']
     markers=['o','s','D','^']
     
-    allpreddB = np.load('local/allpreddB.npy')
-    
     for cond, marker in zip(range(4), markers):
         ax1.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
-        ax1.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='none', color=collist[cond])
         ax1.plot(pedlist,allpreddB[cond,:], color=collist[cond], lw=2)
     
     ax1.set_xlabel('Pedestal contrast (%)',fontsize=30 )
     ax1.set_ylabel('Threshold (%)', fontsize=30)
     ax1.set_title('Linear summation model', fontsize=30)
-    ax1.set_xlim(-12,31)
-    ax1.set_ylim(-12,31)
+    ax1.set_xlim(-13,31)
+    ax1.set_ylim(-13,31)
     ax1.set_yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)
-    ax1.set_xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 25  )
+    ax1.set_xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 25)
+    ax1.text(10,-11,"RMSE = " + str(np.round(model1rms,2)) + "dB", fontsize=30)
+    ax1.plot([-12, 30], [-12, 30], color='black', linestyle="--")
     
-    ax1. plot([-12, 30], [-12, 30], linestyle="--")
-    
-    
-    allpreddB2= np.load('local/allpreddB2.npy')
     legend_elements2 = []
     for cond, marker in zip(range(4) , markers):
         ax2.scatter(pedcontrasts,meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
-        ax2.errorbar(pedcontrasts, meanthresh[cond, :], yerr=SEthresh[cond, :], fmt='none', color=collist[cond])
         ax2.plot(pedlist,allpreddB2[cond], color=collist[cond], lw=2 )
         legend_elements2.append(Line2D([0], [0], color=collist[cond], linestyle='-', label=condition[cond],  markersize=12,  marker=marker))
     ax2.set_xlabel('Pedestal contrast (%)',fontsize=30 )
     ax2.set_ylabel('Threshold (%)', fontsize=30)
     ax2.set_title('Minkowski summation model', fontsize=30)
-    ax2.set_xlim(-12,31)
-    ax2.set_ylim(-12,31)
+    ax2.set_xlim(-13,31)
+    ax2.set_ylim(-13,31)
     ax2.set_yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)
     ax2.set_xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32] ,fontsize = 25  )
     leg2 = ax2.legend(
@@ -1208,51 +1106,64 @@ if r.plotfigures:
         fontsize=20,
         frameon=False
     )
-    
-    ax2.plot([-12, 30], [-12, 30], linestyle="--")
-    
-    
-    
+    ax2.text(10,-11,"RMSE = " + str(np.round(model2rms,2)) + "dB", fontsize=30)    
+    ax2.plot([-12, 30], [-12, 30], color='black', linestyle="--")
+
     #%% Plot fitting result of EEG data
-    contrastsdB=np.arange(12,37,6 )
+    EEGF1 = np.load("local/allF1.npy")   # 30*6*5
+    meanF1 = np.mean(EEGF1, axis=0)  #6*5
+    EEGF2 = np.load("local/allF2.npy")   # 30*6*5
+    meanF2 = np.mean(EEGF2, axis=0)  #6*5
+    
+    data = np.load('local/EEGmodels.npz')
+    allresp = data['allresp']
+    modelparams = data['modelparams']    
+    modelRMS = data['modelRMS'] 
+    
+    contrastsdB = np.arange(12, 37, 6)
     contrastsC = 10**(contrastsdB / 20)
-    contrastsC[0] = 0
+    contrastsfine = np.arange(12, 37, 0.1)
     
     conditions = ['Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl', 'Cross-Dekadactyl', 'Cross-Dichodactyl', 'Pentadactyl', 'Dekadactyl', 'Dichodactyl','Cross-Pentadactyl', 'Cross-Dekadactyl', 'Cross-Dichodactyl']
     collist = ['b', 'r', 'g','y','m', 'k', 'b', 'r', 'g','y','m', 'k']
-    
-    
     markers = ['o', 's', '^', '<', 'p', 'd' , 'o', 's', '^', '<', 'p', 'd']
     
     allresp = np.load('local/EEG_allresp.npy')
     
-    def plotOnefig(ax, data_rows, title, conditions, contrastsdB):
-        legend_elements = []
-        for i in data_rows:
-            idx = i % len(markers)
-    
-            ax.scatter(contrastsdB, allresp[i, :], marker=markers[idx],color=collist[idx], s=70)
-            # ax.errorbar(contrastsdB, allresp[i, :], yerr=SE[i, :], fmt='none', color=collist[idx])
-            ax.plot(contrastsdB, allresp[i, :], color=collist[idx], lw=2)
-            legend_elements.append(Line2D([0], [0], marker=markers[idx], color=collist[idx], linestyle='-', label=conditions[i - data_rows.start], markersize=12))
-    
-        ax.set_title(title, fontsize=30)
-        ax.set_xlabel('Intensity level (%)', fontsize=30)
-        ax.set_ylabel('Model response', fontsize=30)
-        ax.set_xticks(contrastsdB)
-        ax.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
-        ax.set_yticks([0, 0.1,0.2,0.3,0.4,0.5], [0, 0.1,0.2,0.3,0.4,0.5], fontsize = 25  )
-        return legend_elements
-    
     # Plot 26 Hz
-    plotOnefig(ax3, range(6), "26 Hz", conditions[:6], contrastsdB)
+    legend_elements = []
+    for i in range(6):
+        idx = i % len(markers)
+        ax3.plot(contrastsfine, allresp[i, :], color=collist[idx], lw=2)
+        ax3.scatter(contrastsdB, meanF1[i, :], marker=markers[idx], color=collist[idx], s=70)
+        legend_elements.append(Line2D([0], [0], marker=markers[idx], color=collist[idx], linestyle='-', label=conditions[i], markersize=12))
     
+    ax3.set_title("26 Hz", fontsize=30)
+    ax3.set_xlabel('Intensity level (%)', fontsize=30)
+    ax3.set_ylabel('Amplitude (μV)', fontsize=30)
+    ax3.set_xticks(contrastsdB)
+    ax3.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
+    ax3.set_yticks([0,0.1,0.2,0.3,0.4,0.5], [0,0.1,0.2,0.3,0.4,0.5], fontsize = 25)
+    ax3.text(12,0.48,"RMSE = " + str(np.round(modelRMS,3)) + "μV", fontsize=30)
+        
     # Plot 23 Hz
-    legend_elements4 = plotOnefig(ax4, range(6,12), "23 Hz", conditions[6:], contrastsdB)
+    legend_elements = []
+    for i in range(6):
+        idx = i % len(markers)
+        ax4.plot(contrastsfine, allresp[i+6, :], color=collist[idx], lw=2)
+        ax4.scatter(contrastsdB, meanF2[i, :], marker=markers[idx],color=collist[idx], s=70)
+        legend_elements.append(Line2D([0], [0], marker=markers[idx], color=collist[idx], linestyle='-', label=conditions[i], markersize=12))
+    
+    ax4.set_title("23 Hz", fontsize=30)
+    ax4.set_xlabel('Intensity level (%)', fontsize=30)
+    ax4.set_ylabel('Amplitude (μV)', fontsize=30)
+    ax4.set_xticks(contrastsdB)
+    ax4.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
+    ax4.set_yticks([0,0.1,0.2,0.3,0.4,0.5], [0,0.1,0.2,0.3,0.4,0.5], fontsize = 25)
     
     # Add legend to ax4
     leg4 = ax4.legend(
-        handles=legend_elements4,
+        handles=legend_elements,
         loc='upper left',
         bbox_to_anchor=(0.005, 1),
         ncol=2,
@@ -1330,8 +1241,6 @@ monbinratiosdB = 20*np.log10(monbinratios)
 meanratiodB = np.round(np.mean(monbinratiosdB), 2)
 r.meanratio = np.round(10**(meanratiodB/20), 2)
 
-
-EEGF1 = EEGF1[0:30,:,:]
 merged_array1 = EEGF1.reshape(np.prod(EEGF1.shape), 1)
 
 subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
@@ -1369,8 +1278,6 @@ r.EEGF1_ng2 = EEGF1stats3dp[1,8]
 r.EEGF1_ng3 = EEGF1stats3dp[2,8]
 
 
-
-EEGF2 = EEGF2[0:30,:,:]
 merged_array2 = EEGF2.reshape(np.prod(EEGF2.shape), 1)
 
 subs = np.repeat(np.arange(1, 31), 30).reshape(-1, 1)  # 30 participants
@@ -1428,7 +1335,24 @@ EEGF2Bstats2dp = np.array(aov_results3.round(2))
 EEGF2Bstats3dp = np.array(aov_results3.round(3))
 
 r.EEGF2B_F1 = EEGF2Bstats2dp[0,4]
-r.EEGF2B_ng1 = EEGF2Bstats3dp[0,6]
+r.EEGF2B_ng1 = EEGF2Bstats3dp[0,7]
+
+
+data = np.load('local/EEGmodels.npz')
+temp = data['modelparams']
+r.EEGparams = np.round(temp,3)  
+temp = data['modelRMS']
+r.EEGRMS = np.round(temp,3)
+
+data = np.load('local/dippermodels.npz')
+temp = data['model1params']
+r.model1params = np.round(temp,3)
+temp = data['model1rms']
+r.model1rms = np.round(temp,2)
+temp = data['model2params']
+r.model2params = np.round(temp,3)
+temp = data['model2rms']
+r.model2rms = np.round(temp,2)
 
 ```
 
@@ -1547,9 +1471,27 @@ At 23 Hz ([@fig-EEG]f), we also found significant main effects of condition (F =
 
 ## Computational modelling results
 
+```{r paramtable}
+
+paramnames <- c('Model','p','q','m','S','Z','w','k','gamma','RMSE')
+
+```
+
+`r EEGRMS`
+
+`r model1rms`
+
+`r model2rms`
+
+`r EEGparams`
+
+`r model1params`
+
+`r model2params`
+
 
 ::: {.content-visible unless-format="docx"}
-![Model figure.](Figures/models.pdf){#fig-models}
+![Summary of model fitting. Panel (a) shows the fit of a model in which summation is linear (following an early transducer), and panel (b) shows the fit of the Minkowski summation model. Panels (c) and (d) show the best model fit to the EEG data at 26Hz (c) and 23Hz (d).](Figures/models.pdf){#fig-models}
 :::
 
 # Discussion
