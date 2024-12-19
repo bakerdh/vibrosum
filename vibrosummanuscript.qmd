@@ -1381,6 +1381,15 @@ r.model2rms = np.round(temp,2)
 
 # Abstract
 
+While the brain’s integration of auditory and visual inputs has been extensively investigated, the mechanisms underlying the combination of somatosensory signals remain less explored. Here, we investigated vibrotactile summation across fingers using psychophysical and electrophysiological methods. In Experiment 1, discrimination thresholds for 26 Hz vibrations were measured using a two-alternative forced-choice (2AFC) task. Thresholds exhibited a 'dipper' pattern when plotted against pedestal intensity. Detection thresholds decreased by approximately 1dB when all ten fingers were stimulated ('dekadactyl' condition) compared to when each alternate finger was stimulated ('pentadactyl' condition), suggesting a process of probability summation. When a target stimulus was presented to five digits and a pedestal stimulus to the remaining digits ('dichodactyl' condition) thresholds increased, consistent with suppression between digit representations. In Experiment 2, steady-state somatosensory evoked potential (SSSEP) signals showed approximately a 1.4-fold amplitude increase in dekadactyl compared to pentadactyl conditions, indicating a summation effect. Conversely, SSSEP amplitudes decreased when targets and masks were presented at different frequencies, providing additional evidence of suppression. These results are consistent with a model featuring inhibition between digits and reveal that the weight of suppression is intermediate between that observed in binocular vision and binaural hearing.
+
+## Keywords:
+*vibrotactile summation*, *suppression*, *somatosensory*, *computational modelling*
+
+# Significance
+
+How does the brain combine tactile inputs from multiple digits? Through psychophysical and neurophysiological methods, we show that vibrotactile processing across fingers involves both probability summation and suppression between digit representations. Discrimination thresholds improved when all ten fingers were stimulated at the same frequency but worsened with the introduction of mask stimuli between digits. EEG responses further demonstrated a summation effect when doubling the digits stimulated at the same frequency and a suppression effect when digits were stimulated at different frequencies. Modelling results suggest a unique mechanism of tactile integration, distinct from those observed in vision and audition.
+
 
 # Introduction
 
