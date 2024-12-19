@@ -6,6 +6,7 @@ author:
   - name: Catherine E.J. Preston$^{1}$
   - name: \& Daniel H. Baker$^{1}$
 format: pdf
+# prefer-html: true    # required if outputting to docx format
 bibliography: references.bib
 csl: pnas.csl
 execute:
@@ -1491,12 +1492,16 @@ At 23 Hz ([@fig-EEG]f), we also found significant main effects of condition (F =
 
 ## Computational modelling results
 
-See @tbl-parametertable
+We began by fitting the data of Experiment 1 using the model of Meese et al. [@Meese2006], with seven free parameters including the weight of suppression between channels ($\omega$ in @eq-stage1L and @eq-stage1R). Because the combination across channels is linear (following an initial transducer stage), we refer to this as the Linear summation model. The model gave a reasonable fit, as shown in [@fig-models]a, with an RMS error of `r model1rms`dB (see @tbl-parametertable for parameter values). However, two systematic shortcomings are apparent. At detection threshold, the model overestimates the amount of summation (notice the red curve is below the data points for the first three pedestal levels). Also, suppression between channels is relatively strong ($\omega$ = `r model1params_w`), but this results in the slope of the dichodactyl condition (green curve) being steeper than in the empirical data (green triangles).
+
+To address these shortcomings, we added a further parameter to the model - an exponent at the summation stage (see @eq-binsum2). The Minkowski summation model provides a much more satisfactory fit (see [@fig-models]b), with an RMS error of `r model2rms`dB, and no obvious systematic issues with the fit. The Minkowski exponent was estimated at $\gamma$ = `r model2params_y` - substantially greater than than the implicit value of $\gamma$ = 1 in the Linear summation model, and consistent with the low levels of summation at threshold in the data. Several other parameter values also differ between the models (see @tbl-parametertable), most notably the weight of suppression ($\omega$) reduces to near-zero. With this architecture, threshold elevation in the dichodactyl condition is caused by the MAX-like operation from the high Minkowski exponent (a true MAX operator would have an exponent of $\gamma = \infty$), meaning that explicit suppression is not required. However, this does not necessarily mean that there is no suppression at all - since psychophysical responses are assumed to be based on the most sensitive subset of neurons relevant to a given task, it is possible that they directly tap mechanisms that are suppression-free. Our EEG data measure responses from the whole neural population, and so we next model these results to obtain a more general estimate of suppression.
+
+The model used to fit the EEG data omits the output nonlinearity (@eq-stage2), and adds a scaling parameter ($R_{max}$), resulting in 5 free parameters. It produced an excellent account of the results at both temporal frequencies, and across all 6 stimulus conditions (see [@fig-models]c,d), with an RMS error of `r EEGRMS`$\mu$V. The model correctly captures the sub-linear summation between channels (i.e. the red curve in [@fig-models]c is less than a factor of two greater than the blue curve), and the suppression evident in the cross-dekadactyl and cross-dichodactyl conditions. The weight of suppression ($\omega$ = `r EEGparams_w`) was intermediate between the two dipper models, as well as being in between previously published values for vision ($\omega$ = 1; [@Baker2017]) and hearing ($\omega$ = 0; [@Baker2020]).
 
 ```{r}
 #| label: tbl-parametertable
 #| output: true
-#| tbl-cap: 'Summary of fitted model parameters.'
+#| tbl-cap: 'Summary of fitted model parameters for three computational models. Brackets indicate fixed values, and dashes denote parameters not included in a given model.'
 
 tabledata <- matrix(0,nrow=3,ncol=11)
 tabledata <- data.frame(tabledata)
@@ -1507,7 +1512,7 @@ tabledata[1,6] <- as.character(model1params_S)
 tabledata[1,7] <- as.character(model1params_Z)
 tabledata[1,8] <- as.character(model1params_w)
 tabledata[1,9] <- as.character(model1params_k)
-tabledata[1,10] <- as.character(model1params_y)
+tabledata[1,10] <- paste0('(',as.character(model1params_y),')')
 
 tabledata[2,3] <- as.character(model2params_p)
 tabledata[2,4] <- as.character(model2params_q)
@@ -1536,8 +1541,6 @@ kableExtra::kbl(tabledata, align='lcccccccccc',booktabs=TRUE,linesep='',escape =
 # %>% kableExtra::kable_styling(latex_options = "HOLD_position")
 
 ```
-
-
 
 ::: {.content-visible unless-format="docx"}
 ![Summary of model fitting. Panel (a) shows the fit of a model in which summation is linear (following an early transducer), and panel (b) shows the fit of the Minkowski summation model. Panels (c) and (d) show the best model fit to the EEG data at 26Hz (c) and 23Hz (d).](Figures/models.pdf){#fig-models}
