@@ -1571,4 +1571,8 @@ Tactile perception involves the stimulation of each of the ten fingers individua
 
 In summary, we demonstrate that vibrotactile signal combination involves both probability summation and suppression, as evidenced by psychophysical thresholds and EEG activity. A computational model further characterizes this process, indicating that the strength of suppression between digits is intermediate —- weaker than in vision but stronger than in audition. These findings establish a foundational framework for understanding vibrotactile integration and provide a basis for future research to explore whether the weight of suppression varies across different body parts, offering deeper insights into somatosensory processing and clinical conditions in which tactile processing or body experience is affected (e.g., chronic hand pain).
 
+## Acknowledgements
+
+We thank Mark Green for constructing the vibration board, and Kirralise Hansford for her support during EEG data collection. This work was supported by the China Scholarship Council [202308510049].
+
 # References
