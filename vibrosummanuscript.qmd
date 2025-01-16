@@ -1573,6 +1573,6 @@ In summary, we demonstrate that vibrotactile signal combination involves both pr
 
 ## Acknowledgements
 
-We thank Mark Green for constructing the vibration board, and Kirralise Hansford for her support during EEG data collection. This work was supported by the China Scholarship Council [202308510049].
+We thank Mark Green for constructing the vibration board, and Kirralise Hansford for her support during EEG data collection. This work was supported by the China Scholarship Council [202308510049], and by BBSRC grant BB/V007580/1 awarded to DHB and ARW.
 
 # References
