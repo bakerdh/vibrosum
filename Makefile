@@ -6,4 +6,4 @@ document:
 
 document-docker: 
 	R -e "xfun::pkg_attach2('quarto')"
-	R -e "quarto::quarto_render('vibrosummanuscript.qmd')"
+	R -e "quarto::quarto_render('TestVersion.qmd')"
