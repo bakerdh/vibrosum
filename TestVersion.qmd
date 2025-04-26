@@ -41,7 +41,7 @@ under the CC-BY Attribution 4.0 International license.
 
 doanalysis <- 0
 fitmodels <- 0
-plotfigures <- 0
+plotfigures <- 1
 
 # install R packages
 packagelist <- c('utils','knitr','reticulate','osfr','tinytex','rstatix','kableExtra')
@@ -70,6 +70,7 @@ import matplotlib.pyplot as plt
 from mne import EpochsArray
 from mne import viz
 from mne.channels import make_standard_montage
+import scipy.stats as stats
 from scipy.fft import fft, fftfreq
 from scipy.stats import norm
 from scipy.optimize import minimize
@@ -269,10 +270,10 @@ if r.plotfigures:
     
     ################ plot slope
     data1= np.load('local/allslope.npz')
-    allslope= data1['allslope'] 
-    meanslope=np.mean(allslope, axis=0) #4*8
+    allslope = data1['allslope']
+    allslope = 20 * np.log10(allslope)
+    meanslope = np.mean(allslope, axis=0) #4*8
     SEslope = np.std(allslope, axis=0, ddof=1) / np.sqrt(8) 
-    
     
     plt.subplot(1, 2, 2)
     for m in range(meanslope.shape[0]):#iterate over the columns of average_array
@@ -286,9 +287,8 @@ if r.plotfigures:
         plt.fill_between(x, y_lower, y_upper,alpha=0.15, color=lineColor[m])
         
     
-    plt.yscale('log')
-    plt.ylim(0.4,8)
-    plt.yticks([0.5,1, 2, 4, 8], ['0.5','1', '2', '4', '8'],fontsize=25)
+    plt.ylim(-7,19)
+    plt.yticks([-6, 0, 6, 12, 18], ['0.5','1', '2', '4', '8'],fontsize=25)
     plt.minorticks_off()
     plt.xticks(x, [0, 0.5, 1, 2, 4, 8, 16, 32], fontsize=25)
     plt.xlabel('Pedestal contrast (%)', fontsize=30)
@@ -687,6 +687,46 @@ if r.fitmodels:
             contrastinc = 99
     
         return contrastinc
+
+    def getslope(p, pedC, cond):
+    
+        targetlevelsdB = np.array(range(-18,36,3))
+        targetlevelsC = 10 ** (targetlevelsdB/20)
+        
+        if cond == 1:
+            baseline = getmodelresp(p, pedC, 0)
+        elif cond == 2:
+            baseline = getmodelresp(p, pedC, pedC)
+        elif cond == 3:
+            baseline = getmodelresp(p, pedC, pedC)
+        elif cond == 4:
+            baseline = getmodelresp(p, pedC, 0)
+    
+        propcorr = targetlevelsC*0
+        
+        for t in range(len(targetlevelsC)):
+            if cond == 1:
+                modelresp = getmodelresp(p, pedC + targetlevelsC[t], 0)
+            elif cond == 2:
+                modelresp = getmodelresp(p, pedC + targetlevelsC[t], pedC + targetlevelsC[t])
+            elif cond == 3:
+                modelresp = getmodelresp(p, pedC + targetlevelsC[t], pedC)
+            elif cond == 4:
+                modelresp = getmodelresp(p, pedC, targetlevelsC[t])  
+            dprime = (modelresp - baseline)/(p[6]/0.9538726)
+            propcorr[t] = stats.norm.cdf(dprime/np.sqrt(2), loc=0, scale=1)
+
+        level = targetlevelsdB
+        ncorrect = np.round(propcorr * 100)
+        ntrials = (targetlevelsdB*0) + 100
+        tofit = np.vstack((level, ncorrect, ntrials)).T
+                        
+        result_fit = ps.psignifit(tofit, experiment_type='2AFC')
+        threshval = result_fit.parameter_estimate['threshold']
+        slopeval = 10.3 / (result_fit.parameter_estimate['width'] / (norm.ppf(1 - 0.05) - norm.ppf(0.05)))
+
+        return slopeval
+
     
     def errorfit(p):
     
@@ -796,12 +836,20 @@ if r.fitmodels:
     pedlist = np.arange(-12, 40, 0.1)
     pedlevelsC = 10 ** (pedlist / 20)
     pedlevelsC[0] = 0
+    pedcontrasts = np.arange(-12,31,6)
+    pedlevelsC2 = 10 ** (pedcontrasts / 20)
+    pedlevelsC2[0] = 0
     
     allpred = np.zeros((4, len(pedlist)))
+    allslopepred = np.zeros((4, len(pedlevelsC2)))
     for cond in range(1,5):
         for pedlev in range(len(pedlist)):
             allpred[cond-1, pedlev] = discriminate(allp, pedlevelsC[pedlev], cond)
 
+    for cond in range(1,5):           
+        for pedlev in range(len(pedlevelsC2)):
+            allslopepred[cond-1, pedlev] = getslope(allp, pedlevelsC2[pedlev], cond)
+            
     allpreddB = 20 * np.log10(allpred)
     
     model1rms = round(model1rms,2)
@@ -885,20 +933,28 @@ if r.fitmodels:
     pedlist = np.arange(-12, 40, 0.1)
     pedlevelsC = 10 ** (pedlist / 20)
     pedlevelsC[0] = 0
+    pedcontrasts = np.arange(-12,31,6)
+    pedlevelsC2 = 10 ** (pedcontrasts / 20)
+    pedlevelsC2[0] = 0
     
     #### generate prediction data
-    allpred2= np.zeros((4, len(pedlist)))
+    allpred2 = np.zeros((4, len(pedlist)))
+    allslopepred2 = np.zeros((4, len(pedlevelsC2)))
     for cond in range(1,5):
         for pedlev in range(len(pedlist)):
             allpred2[cond-1, pedlev] = discriminate(allp2, pedlevelsC[pedlev], cond)
-    
+
+    for cond in range(1,5):            
+        for pedlev in range(len(pedlevelsC2)):
+            allslopepred2[cond-1, pedlev] = getslope(allp2, pedlevelsC2[pedlev], cond)
+            
     allpreddB2 = 20 * np.log10(allpred2)
     
     model2rms=round(model2rms,2)
     print(model2rms)
     print(model2params)
     
-    np.savez('local/dippermodels.npz', model1params=model1params, allpreddB=allpreddB, model1rms=model1rms, model2params=model2params, allpreddB2=allpreddB2, model2rms=model2rms)
+    np.savez('local/dippermodels.npz', model1params=model1params, allpreddB=allpreddB, model1rms=model1rms, model2params=model2params, allpreddB2=allpreddB2, model2rms=model2rms, allslopepred=allslopepred, allslopepred2=allslopepred2)
 
 
 ```
@@ -1057,34 +1113,53 @@ if r.plotfigures:
     model2params = data['model2params']
     allpreddB2 = data['allpreddB2']
     model2rms = data['model2rms']
+    allslopepred = data['allslopepred']
+    allslopepred2 = data['allslopepred2']
     
-    fig=plt.figure(figsize=(20,19))
-    ax1=fig.add_subplot(2,2,1)
-    ax2=fig.add_subplot(2,2,2)
-    ax3=fig.add_subplot(2,2,3)
-    ax4=fig.add_subplot(2,2,4)
+    
+    fig=plt.figure(figsize=(20,28))
+    ax1=fig.add_subplot(3,2,1)
+    ax2=fig.add_subplot(3,2,2)
+    ax3=fig.add_subplot(3,2,3)
+    ax4=fig.add_subplot(3,2,4)
+    ax5=fig.add_subplot(3,2,5)
+    ax6=fig.add_subplot(3,2,6)
+
+    pos = ax1.get_position()
+    new_pos = [pos.x0, pos.y0+0.05, pos.width, pos.height] ###adjust position
+    ax1.set_position(new_pos)
     
     pos = ax2.get_position()
-    new_pos = [pos.x0 + 0.08, pos.y0, pos.width, pos.height] ###adjust position
+    new_pos = [pos.x0 + 0.08, pos.y0+0.05, pos.width, pos.height] ###adjust position
     ax2.set_position(new_pos)
     
     pos = ax3.get_position()
-    new_pos = [pos.x0, pos.y0-0.05, pos.width, pos.height]
+    new_pos = [pos.x0, pos.y0, pos.width, pos.height]
     ax3.set_position(new_pos)
     
     pos = ax4.get_position()
-    new_pos = [pos.x0 + 0.08, pos.y0-0.05, pos.width, pos.height]
+    new_pos = [pos.x0 + 0.08, pos.y0, pos.width, pos.height]
     ax4.set_position(new_pos)
+
+    pos = ax5.get_position()
+    new_pos = [pos.x0, pos.y0-0.05, pos.width, pos.height]
+    ax5.set_position(new_pos)
     
-    axes = [ax1, ax2, ax3, ax4]
+    pos = ax6.get_position()
+    new_pos = [pos.x0 + 0.08, pos.y0-0.05, pos.width, pos.height]
+    ax6.set_position(new_pos)
+  
+    axes = [ax1, ax2, ax3, ax4, ax5, ax6]
     line_weight = 2
     for ax in axes:
         for spine in ax.spines.values(): spine.set_linewidth(line_weight)
 
-    ax1.text(0.05, 0.870, '(a)', fontsize=40,  transform=fig.transFigure)
-    ax2.text(0.55, 0.870, '(b)', fontsize=40,  transform=fig.transFigure)
-    ax3.text(0.05, 0.400, '(c)', fontsize=40,  transform=fig.transFigure)
-    ax4.text(0.55, 0.400, '(d)', fontsize=40,  transform=fig.transFigure)
+    ax1.text(0.05, 0.950, '(a)', fontsize=40,  transform=fig.transFigure)
+    ax2.text(0.55, 0.950, '(b)', fontsize=40,  transform=fig.transFigure)
+    ax3.text(0.05, 0.625, '(c)', fontsize=40,  transform=fig.transFigure)
+    ax4.text(0.55, 0.625, '(d)', fontsize=40,  transform=fig.transFigure)
+    ax5.text(0.05, 0.300, '(e)', fontsize=40,  transform=fig.transFigure)
+    ax6.text(0.55, 0.300, '(f)', fontsize=40,  transform=fig.transFigure)
     
     
     #%% Plot fitting result of psychophysical data
@@ -1128,6 +1203,43 @@ if r.plotfigures:
     ax2.text(10,-11,"RMSE = " + str(np.round(model2rms,2)) + "dB", fontsize=30)    
     ax2.plot([-12, 30], [-12, 30], color='black', linestyle="--")
 
+
+    ################ plot slope
+    data1 = np.load('local/allslope.npz')
+    allslope = data1['allslope']
+    allslope = 20 * np.log10(allslope)
+    allslopepred = 20 * np.log10(allslopepred)
+    allslopepred2 = 20 * np.log10(allslopepred2)
+    meanslope = np.mean(allslope, axis=0) #4*8
+    SEslope = np.std(allslope, axis=0, ddof=1) / np.sqrt(8) 
+    
+    for cond, marker in zip(range(4), markers):
+        ax3.scatter(pedcontrasts, meanslope[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
+        ax3.plot(pedcontrasts,allslopepred[cond,:], color=collist[cond], lw=2)
+    
+    ax3.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax3.set_ylabel('Weibull ' + r"$\mathrm{\beta}$", fontsize=30)
+    ax3.set_xlim(-13,31)
+    ax3.set_ylim(-7,19)
+    ax3.set_xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)
+    ax3.set_yticks([-6,0,6,12,18],[0.5, 1, 2, 4, 8] ,fontsize = 25)
+    #ax3.text(10,-11,"RMSE = " + str(np.round(model1rms,2)) + "dB", fontsize=30)
+    ax3.plot([-12, 30], [20*np.log10(1.3), 20*np.log10(1.3)], color='black', linestyle="--")
+   
+    for cond, marker in zip(range(4), markers):
+        ax4.scatter(pedcontrasts, meanslope[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
+        ax4.plot(pedcontrasts,allslopepred2[cond,:], color=collist[cond], lw=2)
+    
+    ax4.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax4.set_ylabel('Weibull ' + r"$\mathrm{\beta}$", fontsize=30)
+    ax4.set_xlim(-13,31)
+    ax4.set_ylim(-7,19)
+    ax4.set_xticks([-12,-6,0,6,12,18,24,30],[0, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)
+    ax4.set_yticks([-6,0,6,12,18],[0.5, 1, 2, 4, 8] ,fontsize = 25)
+    #ax4.text(10,-11,"RMSE = " + str(np.round(model1rms,2)) + "dB", fontsize=30)
+    ax4.plot([-12, 30], [20*np.log10(1.3), 20*np.log10(1.3)], color='black', linestyle="--")
+       
+ 
     #%% Plot fitting result of EEG data
     EEGF1 = np.load("local/allF1.npy")   # 30*6*5
     meanF1 = np.mean(EEGF1, axis=0)  #6*5
@@ -1153,35 +1265,35 @@ if r.plotfigures:
     legend_elements = []
     for i in range(6):
         idx = i % len(markers)
-        ax3.plot(contrastsfine, allresp[i, :], color=collist[idx], lw=2)
-        ax3.scatter(contrastsdB, meanF1[i, :], marker=markers[idx], color=collist[idx], s=70)
+        ax5.plot(contrastsfine, allresp[i, :], color=collist[idx], lw=2)
+        ax5.scatter(contrastsdB, meanF1[i, :], marker=markers[idx], color=collist[idx], s=70)
         legend_elements.append(Line2D([0], [0], marker=markers[idx], color=collist[idx], linestyle='-', label=conditions[i], markersize=12))
     
-    ax3.set_title("26 Hz", fontsize=30)
-    ax3.set_xlabel('Intensity level (%)', fontsize=30)
-    ax3.set_ylabel('Amplitude (μV)', fontsize=30)
-    ax3.set_xticks(contrastsdB)
-    ax3.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
-    ax3.set_yticks([0,0.1,0.2,0.3,0.4,0.5], [0,0.1,0.2,0.3,0.4,0.5], fontsize = 25)
-    ax3.text(12,0.48,"RMSE = " + str(np.round(modelRMS,3)) + "μV", fontsize=30)
+    ax5.set_title("26 Hz", fontsize=30)
+    ax5.set_xlabel('Intensity level (%)', fontsize=30)
+    ax5.set_ylabel('Amplitude (μV)', fontsize=30)
+    ax5.set_xticks(contrastsdB)
+    ax5.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
+    ax5.set_yticks([0,0.1,0.2,0.3,0.4,0.5], [0,0.1,0.2,0.3,0.4,0.5], fontsize = 25)
+    ax5.text(12,0.48,"RMSE = " + str(np.round(modelRMS,3)) + "μV", fontsize=30)
         
     # Plot 23 Hz
     legend_elements = []
     for i in range(6):
         idx = i % len(markers)
-        ax4.plot(contrastsfine, allresp[i+6, :], color=collist[idx], lw=2)
-        ax4.scatter(contrastsdB, meanF2[i, :], marker=markers[idx],color=collist[idx], s=70)
+        ax6.plot(contrastsfine, allresp[i+6, :], color=collist[idx], lw=2)
+        ax6.scatter(contrastsdB, meanF2[i, :], marker=markers[idx],color=collist[idx], s=70)
         legend_elements.append(Line2D([0], [0], marker=markers[idx], color=collist[idx], linestyle='-', label=conditions[i], markersize=12))
     
-    ax4.set_title("23 Hz", fontsize=30)
-    ax4.set_xlabel('Intensity level (%)', fontsize=30)
-    ax4.set_ylabel('Amplitude (μV)', fontsize=30)
-    ax4.set_xticks(contrastsdB)
-    ax4.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
-    ax4.set_yticks([0,0.1,0.2,0.3,0.4,0.5], [0,0.1,0.2,0.3,0.4,0.5], fontsize = 25)
+    ax6.set_title("23 Hz", fontsize=30)
+    ax6.set_xlabel('Intensity level (%)', fontsize=30)
+    ax6.set_ylabel('Amplitude (μV)', fontsize=30)
+    ax6.set_xticks(contrastsdB)
+    ax6.set_xticklabels(['4', '8', '16', '32', '64'], fontsize=25)
+    ax6.set_yticks([0,0.1,0.2,0.3,0.4,0.5], [0,0.1,0.2,0.3,0.4,0.5], fontsize = 25)
     
     # Add legend to ax4
-    leg4 = ax4.legend(
+    leg6 = ax6.legend(
         handles=legend_elements,
         loc='upper left',
         bbox_to_anchor=(0.005, 1),
