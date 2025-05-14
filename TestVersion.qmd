@@ -1363,7 +1363,7 @@ posthoc_condition = pg.pairwise_tests(dv='threshold', within='condition', subjec
 print("Pairwise comparisons for condition:")
 print(posthoc_condition)
 t_value = posthoc_condition.iloc[0, 5]
-t_value = t_value.round(2)
+r.t_value = t_value.round(2)
 
 
 
