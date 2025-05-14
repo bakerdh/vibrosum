@@ -30,6 +30,13 @@ Shasha Wei, Email: mfv507\@york.ac.uk
 **Present address**:\
 $^1$Department of Psychology, University of York, York, UK, YO10 5DD
 
+**Author Contributions**\
+D.H.B. designed research; S.W. performed research; S.W., A.R.W. and D.H.B. analysed data; and S.W., A.R.W., C.E.J.P. and D.H.B. wrote and revised the paper. 
+
+**Competing Interests**\
+The authors declare no competing interest.
+
+
 **Classification**: Social Science-Psychological and Cognitive Sciences\
 **Keywords**: vibrotactile summation, suppression, somatosensory, computational modelling\
 
