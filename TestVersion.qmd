@@ -260,7 +260,7 @@ if r.plotfigures:
     plt.ylim(-15,30)
     plt.yticks([-12,-6,0,6,12,18,24,30],[0.25, 0.5, 1, 2, 4, 8, 16, 32],fontsize = 25)       
     plt.xticks(x,[0, 0.5, 1, 2, 4, 8, 16, 32],  fontsize = 25  )
-    plt.xlabel('Pedestal contrast (%)', fontsize=30)
+    plt.xlabel('Baseline intensity level (%)', fontsize=30)
     plt.ylabel('Threshold (%)', fontsize=30)
     plt.legend(handles=legend_elements)
     leg = plt.legend(frameon=False, loc='lower right', fontsize=24)
@@ -298,7 +298,7 @@ if r.plotfigures:
     plt.yticks([-6, 0, 6, 12, 18], ['0.5','1', '2', '4', '8'],fontsize=25)
     plt.minorticks_off()
     plt.xticks(x, [0, 0.5, 1, 2, 4, 8, 16, 32], fontsize=25)
-    plt.xlabel('Pedestal contrast (%)', fontsize=30)
+    plt.xlabel('Baseline intensity level (%)', fontsize=30)
     plt.ylabel('Weibull ' + r"$\mathrm{\beta}$", fontsize=30)
     plt.subplots_adjust(wspace=0.6)
     fig = plt.gcf() 
@@ -309,7 +309,7 @@ if r.plotfigures:
         spine.set_linewidth(2.5)  # Adjust the thickness of the frame
     ax.tick_params(axis='both', which='major', width=2)
     plt.tight_layout()
-    plt.savefig('Figures/dippers.pdf')
+    plt.savefig('Figures/Figure1.pdf')
 
 ```
 
@@ -619,7 +619,7 @@ if r.plotfigures:
             spine.set_linewidth(2.5)
         ax.tick_params(axis='both', which='major', width=2)
     
-    plt.savefig('Figures/SSEPs.pdf')
+    plt.savefig('Figures/Figure2.pdf')
 
 ```
 
@@ -1178,7 +1178,7 @@ if r.plotfigures:
         ax1.scatter(pedcontrasts, meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
         ax1.plot(pedlist,allpreddB[cond,:], color=collist[cond], lw=2)
     
-    ax1.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax1.set_xlabel('Baseline intensity level (%)',fontsize=30 )
     ax1.set_ylabel('Threshold (%)', fontsize=30)
     ax1.set_title('Linear summation model', fontsize=30)
     ax1.set_xlim(-13,31)
@@ -1193,7 +1193,7 @@ if r.plotfigures:
         ax2.scatter(pedcontrasts,meanthresh[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
         ax2.plot(pedlist,allpreddB2[cond], color=collist[cond], lw=2 )
         legend_elements2.append(Line2D([0], [0], color=collist[cond], linestyle='-', label=condition[cond],  markersize=12,  marker=marker))
-    ax2.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax2.set_xlabel('Baseline intensity level (%)',fontsize=30 )
     ax2.set_ylabel('Threshold (%)', fontsize=30)
     ax2.set_title('Minkowski summation model', fontsize=30)
     ax2.set_xlim(-13,31)
@@ -1224,7 +1224,7 @@ if r.plotfigures:
         ax3.scatter(pedcontrasts, meanslope[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
         ax3.plot(pedcontrasts,allslopepred[cond,:], color=collist[cond], lw=2)
     
-    ax3.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax3.set_xlabel('Baseline intensity level (%)',fontsize=30 )
     ax3.set_ylabel('Weibull ' + r"$\mathrm{\beta}$", fontsize=30)
     ax3.set_xlim(-13,31)
     ax3.set_ylim(-7,19)
@@ -1237,7 +1237,7 @@ if r.plotfigures:
         ax4.scatter(pedcontrasts, meanslope[cond, :], color=collist[cond], marker=marker, label=condition[cond], s=70)
         ax4.plot(pedcontrasts,allslopepred2[cond,:], color=collist[cond], lw=2)
     
-    ax4.set_xlabel('Pedestal contrast (%)',fontsize=30 )
+    ax4.set_xlabel('Baseline intensity level (%)',fontsize=30 )
     ax4.set_ylabel('Weibull ' + r"$\mathrm{\beta}$", fontsize=30)
     ax4.set_xlim(-13,31)
     ax4.set_ylim(-7,19)
@@ -1310,7 +1310,7 @@ if r.plotfigures:
     )
     
     
-    plt.savefig('Figures/models.pdf')
+    plt.savefig('Figures/Figure3.pdf')
 
 ```
 
