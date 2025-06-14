@@ -8,6 +8,8 @@ local/rawEEGdata/
 local/processedEEGdata.npz
 local/fits1/
 local/fits2/
+local/MLfitsPhysical/
+local/MLfitsNormalized/
 env/
 .TinyTex/
 .cache/

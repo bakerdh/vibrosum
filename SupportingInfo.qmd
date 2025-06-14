@@ -1,0 +1,661 @@
+---
+title: "Signal combination in vibration perception: Supporting Information Appendix"
+author:
+  - name: Shasha Wei$^{1,2}$
+  - name: Alex R. Wade$^{1,3}$
+  - name: Catherine E.J. Preston$^{1}$
+  - name: \& Daniel H. Baker$^{1}$
+format: pdf
+header-includes:
+  \renewcommand{\thetable}{S\arabic{table}}
+  \renewcommand{\thefigure}{S\arabic{figure}}
+---
+
+$^1$Department of Psychology, University of York, UK, YO10 5DD\
+$^2$Corresponding author, email: mfv507\@york.ac.uk\
+$^3$York Biomedical Research Institute, University of York, UK, YO10 5DD\
+
+```{r initialiseenvironment}
+#| include: false
+
+fitmodels <- 1
+plotfigures <- 1
+
+# install R packages
+packagelist <- c('pracma','doParallel','utils','knitr','reticulate','osfr','tinytex','rstatix','kableExtra')
+
+missingpackages <- packagelist[!packagelist %in% installed.packages()[,1]]
+if (length(missingpackages)>0){install.packages(missingpackages)}
+toinstall <- packagelist[which(!packagelist %in% (.packages()))]
+invisible(lapply(toinstall,library,character.only=TRUE))
+
+use_python("/usr/bin/python3.10")
+
+if (fitmodels==1){
+  ncores <- 8
+  cluster <- makeCluster(ncores)
+  registerDoParallel(cluster)
+}
+
+ntotalsimplexfits <- 100
+
+collist <- c('red','blue','orange','darkgreen')
+condnames <- c('Pentedactyl','Dekadactyl','Half-dekadactyl','Dichodactyl')
+
+  ps <- import('psignifit')
+  # # calculate constant to scale the slope parameter to the Gaussian SD
+  # C <- ps$utils$my_norminv(1-0.05,0,1) - ps$utils$my_norminv(0.05,0,1)
+
+tabledata <- matrix(0,nrow=8,ncol=12)
+tableroworder <- c(2,6,3,7,4,8)
+
+```
+
+```{r commonfunctions}
+#| include: false
+
+getmodelresp <- function(p,L,R){
+  Lresp <- (L^p[3])/(p[4] + L + p[6]*R)
+  Rresp <- (R^p[3])/(p[4] + R + p[6]*L)
+  bs <- (Lresp^p[8] + Rresp^p[8])^(1/p[8])
+  resp <- (bs^p[1])/(p[5] + bs^p[2])
+  return(resp)}
+
+convertparams <- function(p){
+  
+  p <- 10^p
+  p[2] <- p[2] + 1
+  p[2] <- min(p[2],16)
+  p[1] <- 1 + p[1] + p[2]
+  p[1] <- min(p[1],20)
+  p[3] <- 1 + p[3]
+  p[4] <- 0.1 + p[4]
+  
+  if (length(p)==7){p[8] <- 1}  # minkowski exponent of 1 in the summation model
+ 
+return(p)}
+
+getmodelprops <- function(p,condlist){
+  
+  props <- NULL
+  for (i in 1:nrow(condlist)){
+    
+    cond <- condlist[i,1]
+    pedC <- condlist[i,2]
+    contrastinc <- condlist[i,3]
+    
+    if (cond==1){baseline <- getmodelresp(p,pedC,0)}
+    if (cond==2){baseline <- getmodelresp(p,pedC,pedC)}
+    if (cond==3){baseline <- getmodelresp(p,pedC,pedC)}
+    if (cond==4){baseline <- getmodelresp(p,pedC,0)}
+    
+    if (cond==1){modelresp <- getmodelresp(p,pedC+contrastinc,0)}
+    if (cond==2){modelresp <- getmodelresp(p,pedC+contrastinc,pedC+contrastinc)}
+    if (cond==3){modelresp <- getmodelresp(p,pedC+contrastinc,pedC)}
+    if (cond==4){modelresp <- getmodelresp(p,pedC,contrastinc)}
+    
+    dprime <- (modelresp - baseline)/(p[7]/0.9538726)
+    props[i] <- pnorm(dprime/sqrt(2))
+  }
+return(props)}
+
+calcMLE <- function(props,expdata){
+  props[which(props>0.98)] <- 0.95  # avoid NaNs from log(0)
+  props[which(props<0.02)] <- 0.05  # avoid NaNs from log(0)
+  LL <- -sum(expdata$ncorrect * log(props) + (expdata$ntrials-expdata$ncorrect) * log(1-props),na.rm=TRUE)
+
+return(LL)}
+
+errorfit <- function(p){
+  condlist <- expdata[,1:3]
+  if (doconversion==1){p <- convertparams(p)}
+  props <- getmodelprops(p,condlist)
+  MLE <- calcMLE(props,expdata)
+return(MLE)}
+
+discriminate <- function(p,pedC,cond) {
+  
+  if (cond==1){baseline <- getmodelresp(p,pedC,0)}
+  if (cond==2){baseline <- getmodelresp(p,pedC,pedC)}
+  if (cond==3){baseline <- getmodelresp(p,pedC,pedC)}
+  if (cond==4){baseline <- getmodelresp(p,pedC,0)}
+  
+  modelresp <- -10
+  contrastinc <- 0
+  if (baseline>-999){
+    while (((modelresp-baseline) < p[7])){
+      contrastinc <- contrastinc + 0.1
+      if (cond==1){modelresp <- getmodelresp(p,pedC+contrastinc,0)}
+      if (cond==2){modelresp <- getmodelresp(p,pedC+contrastinc,pedC+contrastinc)}
+      if (cond==3){modelresp <- getmodelresp(p,pedC+contrastinc,pedC)}
+      if (cond==4){modelresp <- getmodelresp(p,pedC,contrastinc)}
+      
+      if (contrastinc>100){modelresp <- 999}
+      
+    }
+    if (modelresp < 999){
+      while (((modelresp-baseline) > p[7])){
+        contrastinc <- contrastinc - 0.001
+        if (cond==1){modelresp <- getmodelresp(p,pedC+contrastinc,0)}
+        if (cond==2){modelresp <- getmodelresp(p,pedC+contrastinc,pedC+contrastinc)}
+        if (cond==3){modelresp <- getmodelresp(p,pedC+contrastinc,pedC)}
+        if (cond==4){modelresp <- getmodelresp(p,pedC,contrastinc)}
+      }    }
+  }
+  else{contrastinc <- 99}
+  return(contrastinc) }
+
+estimateslope <- function(p,pedC,cond){
+  
+  targetlevelsdB <- seq(-18,36,3)
+  targetlevelsC <- 10^(targetlevelsdB/20)
+  
+  if (cond==1){baseline <- getmodelresp(p,pedC,0)}
+  if (cond==2){baseline <- getmodelresp(p,pedC,pedC)}
+  if (cond==3){baseline <- getmodelresp(p,pedC,pedC)}
+  if (cond==4){baseline <- getmodelresp(p,pedC,0)}
+
+  propcorr <- NULL
+  for (t in 1:length(targetlevelsdB)){
+      if (cond==1){modelresp <- getmodelresp(p,pedC+targetlevelsC[t],0)}
+      if (cond==2){modelresp <- getmodelresp(p,pedC+targetlevelsC[t],pedC+targetlevelsC[t])}
+      if (cond==3){modelresp <- getmodelresp(p,pedC+targetlevelsC[t],pedC)}
+      if (cond==4){modelresp <- getmodelresp(p,pedC,targetlevelsC[t])}
+      dprime <- (modelresp - baseline)/(p[7]/0.9538726)
+      propcorr[t] <- pnorm(dprime/sqrt(2))
+  }
+  
+  ntrials <- targetlevelsdB*0 + 100
+  ncorrect <- round(propcorr*100)
+  # options <- NULL
+  # options$sigmoidName <- 'norm'   # choose a cumulative Gauss as the sigmoid
+  # options$expType <- '2AFC'   # choose 2-AFC as the paradigm of the 
+  tofit <- as.matrix(data.frame(targetlevelsdB,ncorrect,ntrials))
+  res <- ps$psignifit(tofit, experiment_type='2AFC')  #,options)
+  
+  C <- qnorm(0.95) - qnorm(0.05)
+  slopeout <- 10.3/(res$parameter_estimate$width/C)  # convert to Weibull beta
+return(slopeout)}
+
+```
+
+```{r loaddata}
+#| include: false
+
+load('local/dipthresh.RData')
+meanthresh <- apply(allthresh,2:3,mean)
+SEthresh <- apply(allthresh,2:3,sd)/sqrt(8)
+allslope <- 20*log10(allslope)
+meanslopes <- apply(allslope,2:3,mean)
+SEslope <- apply(allslope,2:3,sd)/sqrt(8)
+
+ex1data <- read.csv('local/8subjects.csv')
+ex1data$Condition <- ceiling(ex1data$Condition/2)
+ex1data$subjects <- as.numeric(as.factor(ex1data$Subject))  # convert subject IDs to numbers
+
+sublist <- unique(ex1data$Subject)
+
+counter <- 0
+ntrials <- NULL
+ncorrect <- NULL
+subjects <- NULL
+conditions <- NULL
+pedestals <- NULL
+targets <- NULL
+
+  for (cond in 1:4){
+    # thisdipper <- subset(ex1data,Subject==sublist[1] & Condition==cond)
+    thisdipper <- subset(ex1data,Condition==cond)
+    
+    pedconts <- sort(unique(thisdipper$PedestalContrast))
+    
+    for (p in 1:length(pedconts)){
+      thisthresh <- subset(thisdipper,PedestalContrast==pedconts[p])
+      targconts <- sort(unique(thisthresh$TargetContrast))
+      for (t in 1:length(targconts)){
+        counter <- counter + 1
+        thislevel <- subset(thisthresh,TargetContrast==targconts[t])
+        ntrials[counter] <- nrow(thislevel)
+        ncorrect[counter] <- sum(thislevel$IsCorrect)
+        conditions[counter] <- cond
+        pedestals[counter] <- pedconts[p]
+        targets[counter] <- targconts[t]
+      }
+    }
+  }
+
+expdataraw <- data.frame(conditions,pedestals,targets,ntrials,ncorrect)
+condlist <- expdataraw[,1:3]
+
+
+subjectthresholds <- 10^(allthresh[,1,1]/20)
+scalefacts <- subjectthresholds[ex1data$subjects]
+ex1data$PedestalContrast <- ex1data$PedestalContrast / scalefacts
+ex1data$TargetContrast <- ex1data$TargetContrast / scalefacts
+
+counter <- 0
+ntrials <- NULL
+ncorrect <- NULL
+subjects <- NULL
+conditions <- NULL
+pedestals <- NULL
+targets <- NULL
+
+  for (cond in 1:4){
+    thisdipper <- subset(ex1data,Condition==cond)
+    
+    pedconts <- sort(unique(thisdipper$PedestalContrast))
+    
+    for (p in 1:length(pedconts)){
+      thisthresh <- subset(thisdipper,PedestalContrast==pedconts[p])
+      targconts <- sort(unique(thisthresh$TargetContrast))
+      for (t in 1:length(targconts)){
+        counter <- counter + 1
+        thislevel <- subset(thisthresh,TargetContrast==targconts[t])
+        ntrials[counter] <- nrow(thislevel)
+        ncorrect[counter] <- sum(thislevel$IsCorrect)
+        conditions[counter] <- cond
+        pedestals[counter] <- pedconts[p]
+        targets[counter] <- targconts[t]
+      }
+    }
+  }
+
+expdatanorm <- data.frame(conditions,pedestals,targets,ntrials,ncorrect)
+
+
+```
+
+```{r doMLfitting}
+#| include: false
+
+if (fitmodels==1){
+  doconversion <<- 1
+  
+  for (normalization in 1:2){
+    
+    if (normalization==1){
+      expdata <<- expdataraw
+      fitpath <- 'local/MLfitsPhysical/'}
+    if (normalization==2){
+      expdata <<- expdatanorm
+      fitpath <- 'local/MLfitsNormalized/'}
+    
+    if (!dir.exists(fitpath)){dir.create(fitpath)}
+    
+    for (modelno in 1:2){
+      
+      nfits <- ntotalsimplexfits
+      for (n in 1:ntotalsimplexfits){
+        if (file.exists(paste0(fitpath,'M',modelno,'f',n,'.RData'))){nfits <- nfits-1}
+      }
+      
+      if (nfits > 0){
+        foreach(i = 1:nfits, .combine=rbind) %dopar% {
+          if (modelno==1){sout <- pracma::nelder_mead(errorfit,rnorm(7,sd=0.2)+log10(c(0.5,5.5,0.3,1,0.01,1,0.2)))}
+          if (modelno==2){sout <- pracma::nelder_mead(errorfit,rnorm(8,sd=0.2)+log10(c(0.5,5.5,0.3,1,0.01,1,0.2,15)))}
+          
+          allout <- c(errorfit(sout$xmin),sout$xmin)
+          if (modelno==1){allout[9] <- 0}
+          
+          hassaved <- 0
+          filecount <- 0
+          while (!hassaved){
+            filecount <- filecount + 1
+            if (!file.exists(paste0(fitpath,'M',modelno,'f',filecount,'.RData'))){
+              save(file=paste0(fitpath,'M',modelno,'f',filecount,'.RData'),list='allout')
+              hassaved <- 1}
+          }
+          
+        }
+      }
+      
+    }
+    
+  } 
+  
+}
+
+```
+
+```{r plotfits1}
+#| include: false
+
+doconversion <<- 0
+
+for (modelno in 1:4){
+
+  expdata <- expdataraw
+  
+  if (modelno==1){params <- c(9.845,8.845,1.416,0.067,106.408,0.817,0.264,1)}
+  if (modelno==2){params <- c(19.149,16.00,1.081,0.976,0.039,0.004,0.142,15.484)}
+  if (modelno>2){
+    fitpath <- 'local/MLfitsPhysical/'
+    finalout <- matrix(0,nrow=ntotalsimplexfits,ncol=9)
+    for (n in 1:ntotalsimplexfits){
+      if (file.exists(paste0(fitpath,'M',modelno-2,'f',n,'.RData'))){
+        load(file=paste0(fitpath,'M',modelno-2,'f',n,'.RData'))
+        finalout[n,] <- allout[1:9]
+      }
+    }
+i <- which(finalout[,1]<25000)
+finalout[i,1] <- 9999999
+i <- which(finalout[,1]==min(finalout[,1]))
+praw <- finalout[i[1],2:9]
+params <- convertparams(praw)
+}
+
+tabledata[tableroworder[modelno],2:9] <- round(params,digits=3)
+
+  if (plotfigures==1){
+pdf(paste0('Figures/FigureS',modelno,'.pdf'), bg="transparent", height = 12, width = 12)
+
+layout(matrix(c(9,9,1,2,9,9,3,4,10,10,5,6,10,10,7,8), 4, 4, byrow=T))
+
+pedcontrasts <- seq(-12,30,6)
+pedcontrastslin <- 10^(pedcontrasts/20)
+pedcontrastslin[1] <- 0
+
+pedclistnames <- c('0','0.5','1','2','4','8','16','32')
+finecontrasts <- 10.^(seq(-12,36)/20)
+ticklocsx <- seq(-12,36,12)
+ticklabelsx <- c(0,1,4,16,64)
+ticklocsy <- seq(0,1,0.25)
+ticklabelsy <- seq(0,1,0.25)
+
+pedlevs <- sort(unique(expdata$pedestals))
+
+for (ped in 1:8){
+  
+  par(pty="s")  # make axis square
+  plot(x=NULL,y=NULL,axes=FALSE, ann=FALSE, xlim=c(-12,36), ylim=c(0,1))   
+  axis(1, at=ticklocsx, tck=0.01, lab=F, lwd=2)     # plot tick marks (no labels)
+  axis(2, at=ticklocsy, tck=0.01, lab=F, lwd=2)
+  mtext(text = ticklabelsx, side = 1, at=ticklocsx, line=0.3)     
+  mtext(text = ticklabelsy, side = 2, at=ticklocsy, line=0.2, las=1)
+  title(xlab="Target intensity (%)", col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)   
+  title(ylab="Proportion correct", col.lab=rgb(0,0,0), line=2.8, cex.lab=1.5)
+  
+  thisped <- subset(expdata,pedestals==pedlevs[ped])
+  includedconds <- sort(unique(thisped$conditions))
+  
+  for (cond in 1:length(includedconds)){
+    thiscond <- subset(thisped,conditions==includedconds[cond])
+    
+    condlist <- finecontrasts*0 + includedconds[cond]
+    pedlist <- finecontrasts*0 + pedlevs[ped]
+    condmatrix <- data.frame(condlist,pedlist,finecontrasts)
+    colnames(condmatrix) <- c('conditions','pedestals','targets')
+    modelpmf <- getmodelprops(params,condmatrix)
+    
+    points(20*log10(thiscond$targets),thiscond$ncorrect/thiscond$ntrials,pch=16,col=collist[includedconds[cond]],cex=thiscond$ntrials/300)
+    lines(20*log10(finecontrasts),modelpmf,col=collist[includedconds[cond]],lwd=2)
+    
+    # lines(allpreddB[includedconds[cond],c(ped,ped)],c(0,0.75),lwd=2,col=collist[includedconds[cond]])
+  }
+  
+  title(main=paste0('Baseline = ',pedclistnames[ped],'%'))
+  
+  lines(c(-12,36),c(0.5,0.5),lty=2)
+  
+}
+
+pedlist <- -12:39
+pedlevelsC <- 10^(pedlist/20)
+pedlevelsC[1] <- 0
+allpred <- array(0,dim=c(4,length(pedlist)))
+allthdforRMS <- array(0,dim=c(4,length(pedcontrasts)))
+allslpforRMS <- array(0,dim=c(4,length(pedcontrasts)))
+
+for (cond in 1:4){
+  for (pedlev in 1:length(pedlist)){
+    allpred[cond,pedlev] <- discriminate(params,pedlevelsC[pedlev],cond)
+  }
+  for (pedlev in 1:length(pedcontrasts)){
+    allthdforRMS[cond,pedlev] <- 20*log10(discriminate(params,pedcontrastslin[pedlev],cond))
+    allslpforRMS[cond,pedlev] <- 20*log10(estimateslope(params,pedcontrastslin[pedlev],cond))
+  }  
+}
+
+allpreddB <- 20*log10(allpred)
+
+
+tabledata[tableroworder[modelno],10] <- round(sqrt(mean((allthdforRMS-meanthresh)^2)),digits=2)
+tabledata[tableroworder[modelno],11] <- round(sqrt(mean((allslpforRMS-meanslopes)^2)),digits=2)
+tabledata[tableroworder[modelno],12] <- round(errorfit(params),digits=0)
+
+ticklocsx <- seq(-12,30,6)
+ticklabelsx <- c(0,0.5,1,2,4,8,16,32)
+ticklocsy <- seq(-12,30,6)
+ticklabelsy <- c(0.25,0.5,1,2,4,8,16,32)
+
+par(pty="s")  # make axis square
+plot(x=NULL,y=NULL,axes=FALSE, ann=FALSE, xlim=c(-12,30), ylim=c(-12,30))   
+axis(1, at=ticklocsx, tck=0.01, lab=F, lwd=2)     # plot tick marks (no labels)
+axis(2, at=ticklocsy, tck=0.01, lab=F, lwd=2)
+mtext(text = ticklabelsx, side = 1, at=ticklocsx, line=0.3)     
+mtext(text = ticklabelsy, side = 2, at=ticklocsy, line=0.2, las=1)
+title(xlab="Baseline intensity level (%)", col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)   
+title(ylab="Threshold (%)", col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)
+if (modelno==1){title(main='Linear summation model, threshold fit',cex.main=2)}
+if (modelno==2){title(main='Minkowski summation model, threshold fit',cex.main=2)}
+if (modelno==3){title(main='Linear summation model, ML fit',cex.main=2)}
+if (modelno==4){title(main='Minkowski summation model, ML fit',cex.main=2)}
+
+for (cond in 1:4){
+  arrows(pedcontrasts,meanthresh[cond,],pedcontrasts,meanthresh[cond,]+SEthresh[cond,],col=collist[cond],angle=90,length=0.02,lwd=2)
+  arrows(pedcontrasts,meanthresh[cond,],pedcontrasts,meanthresh[cond,]-SEthresh[cond,],col=collist[cond],angle=90,length=0.02,lwd=2)  
+  # lines(pedcontrasts,meanthresh[1,cond,],col=collist[cond],lwd=2)
+  lines(pedlist,allpreddB[cond,],col=collist[cond],lwd=2)
+  points(pedcontrasts,meanthresh[cond,],pch=16,col=collist[cond],cex=1.5)
+}
+legend(-12,30,c('Pentedactyl','Dekadactyl','Half-dekadactyl','Dichodactyl'),pch=16,col=collist,box.lwd=2,cex=1.5)
+text(21,-10.5,paste0('RMSE = ',tabledata[tableroworder[modelno],10],'dB'),cex=2)
+lines(c(-12,30),c(-12,30),lty=2)
+
+
+
+ticklocsy <- seq(-6,18,6)
+ticklabelsy <- c(0.5,1,2,4,8)
+
+par(pty="s")  # make axis square
+plot(x=NULL,y=NULL,axes=FALSE, ann=FALSE, xlim=c(-12,30), ylim=c(-6,18))   
+axis(1, at=ticklocsx, tck=0.01, lab=F, lwd=2)     # plot tick marks (no labels)
+axis(2, at=ticklocsy, tck=0.01, lab=F, lwd=2)
+mtext(text = ticklabelsx, side = 1, at=ticklocsx, line=0.3)     
+mtext(text = ticklabelsy, side = 2, at=ticklocsy, line=0.2, las=1)
+title(xlab="Baseline intensity level (%)", col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)   
+title(ylab=expression(paste('Slope (Weibull ', beta,')')), col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)
+
+for (cond in 1:4){
+  arrows(pedcontrasts,meanslopes[cond,],pedcontrasts,meanslopes[cond,]+SEslope[cond,],col=collist[cond],angle=90,length=0.02,lwd=2)
+  arrows(pedcontrasts,meanslopes[cond,],pedcontrasts,meanslopes[cond,]-SEslope[cond,],col=collist[cond],angle=90,length=0.02,lwd=2)  
+  lines(pedcontrasts,allslpforRMS[cond,],col=collist[cond],lwd=2)
+  points(pedcontrasts,meanslopes[cond,],pch=16,col=collist[cond],cex=1.5)
+}
+text(21,-5.5,paste0('RMSE = ',tabledata[tableroworder[modelno],11],'dB'),cex=2)
+
+
+dev.off()
+}
+
+}
+
+
+```
+
+```{r plotfits2}
+#| include: false
+
+doconversion <<- 0
+plotfigures <- 1
+
+if (plotfigures==1){
+pdf(paste0('Figures/FigureS5.pdf'), bg="transparent", height = 7, width = 12)
+
+layout(matrix(1:2,1,2, byrow=T))
+
+for (modelno in 1:2){
+
+  expdata <- expdatanorm
+  
+    fitpath <- 'local/MLfitsNormalized/'
+    finalout <- matrix(0,nrow=ntotalsimplexfits,ncol=9)
+    for (n in 1:ntotalsimplexfits){
+      if (file.exists(paste0(fitpath,'M',modelno,'f',n,'.RData'))){
+        load(file=paste0(fitpath,'M',modelno,'f',n,'.RData'))
+        finalout[n,] <- allout[1:9]
+      }
+    }
+    
+i <- which(finalout[,1]<25000)
+finalout[i,1] <- 9999999
+i <- which(finalout[,1]==min(finalout[,1]))
+praw <- finalout[i[1],2:9]
+params <- convertparams(praw)
+
+tabledata[tableroworder[modelno+4],2:9] <- round(params,digits=3)
+tabledata[tableroworder[modelno+4],12] <- round(errorfit(params),digits=0)
+
+pedcontrasts <- seq(-12,30,6)
+pedcontrastslin <- 10^(pedcontrasts/20)
+pedcontrastslin[1] <- 0
+
+pedlist <- -18:39
+pedlevelsC <- 10^(pedlist/20)
+pedlevelsC[1] <- 0
+allpred <- array(0,dim=c(4,length(pedlist)))
+# allthdforRMS <- array(0,dim=c(4,length(pedcontrasts)))
+# allslpforRMS <- array(0,dim=c(4,length(pedcontrasts)))
+
+for (cond in 1:4){
+  for (pedlev in 1:length(pedlist)){
+    allpred[cond,pedlev] <- discriminate(params,pedlevelsC[pedlev],cond)
+  }
+}
+
+allpreddB <- 20*log10(allpred)
+
+ticklocsx <- seq(-18,24,6)
+ticklabelsx <- c(0,0.25,0.5,1,2,4,8,16)
+ticklocsy <- seq(-18,24,6)
+ticklabelsy <- c(0.125,0.25,0.5,1,2,4,8,16)
+
+par(pty="s")  # make axis square
+plot(x=NULL,y=NULL,axes=FALSE, ann=FALSE, xlim=c(-18,24), ylim=c(-18,24))   
+axis(1, at=ticklocsx, tck=0.01, lab=F, lwd=2)     # plot tick marks (no labels)
+axis(2, at=ticklocsy, tck=0.01, lab=F, lwd=2)
+mtext(text = ticklabelsx, side = 1, at=ticklocsx, line=0.3)     
+mtext(text = ticklabelsy, side = 2, at=ticklocsy, line=0.2, las=1)
+title(xlab="Baseline intensity level (RE detection)", col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)   
+title(ylab="Threshold (RE detection)", col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)
+if (modelno==1){title(main='Linear summation model, ML fit (norm)',cex.main=1.6)}
+if (modelno==2){title(main='Minkowski summation model, ML fit (norm)',cex.main=1.6)}
+
+for (subj in 1:8){
+  for (cond in 1:4){
+    if (cond<3){points(-18,allthresh[subj,cond,1]-allthresh[subj,1,1],pch=16,col=collist[cond],cex=1)}
+    points(pedcontrasts[2:8]-allthresh[subj,cond,1],allthresh[subj,cond,2:8]-allthresh[subj,1,1],pch=16,col=collist[cond],cex=1)
+}}
+
+for (cond in 1:4){
+
+  lines(pedlist,allpreddB[cond,],col=collist[cond],lwd=2)
+}
+if (modelno==1){legend(-18,24,c('Pentedactyl','Dekadactyl','Half-dekadactyl','Dichodactyl'),pch=16,col=collist,box.lwd=2,cex=1.5)}
+# text(18,-10.5,paste0('RMSE = ',round(RMSfortable[modelno],digits=2),'dB'),cex=2)
+lines(c(-18,24),c(-18,24),lty=2)
+
+# 
+# slopepedsdB <- seq(-18,24,3)
+# slopepedsC <- 10^(slopepedsdB/20)
+# slopepedsC[1] <- 0
+# 
+# allslpforplot <- array(0,dim=c(4,length(slopepedsC)))
+# 
+# for (cond in 1:4){
+#   for (pedlev in 1:length(slopepedsC)){
+#     allslpforplot[cond,pedlev] <- 20*log10(estimateslope(params,slopepedsC[pedlev],cond))
+#   }
+# }
+# 
+# ticklocsy <- seq(-6,18,6)
+# ticklabelsy <- c(0.5,1,2,4,8)
+# 
+# par(pty="s")  # make axis square
+# plot(x=NULL,y=NULL,axes=FALSE, ann=FALSE, xlim=c(-18,24), ylim=c(-6,18))   
+# axis(1, at=ticklocsx, tck=0.01, lab=F, lwd=2)     # plot tick marks (no labels)
+# axis(2, at=ticklocsy, tck=0.01, lab=F, lwd=2)
+# mtext(text = ticklabelsx, side = 1, at=ticklocsx, line=0.3)     
+# mtext(text = ticklabelsy, side = 2, at=ticklocsy, line=0.2, las=1)
+# title(xlab="Baseline intensity level (RE detection)", col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)   
+# title(ylab=expression(paste('Slope (Weibull ', beta,')')), col.lab=rgb(0,0,0), line=1.5, cex.lab=1.5)
+# 
+# for (subj in 1:8){
+#   for (cond in 1:4){
+#     if (cond<3){points(-18,allslope[subj,cond,1],pch=16,col=collist[cond],cex=1)}
+#     points(pedcontrasts[2:8]-allthresh[subj,cond,1],allslope[subj,cond,2:8],pch=16,col=collist[cond],cex=1)
+#   }}
+# 
+# 
+# for (cond in 1:4){
+#   lines(slopepedsdB,allslpforplot[cond,],col=collist[cond],lwd=2)
+# }
+# # text(18,-5.5,paste0('RMSE = ',round(RMSslope[modelno],digits=2),'dB'),cex=2)
+# 
+
+
+}
+}
+  
+  
+  
+```
+  
+In addition to the threshold fits reported in the main manuscript, we also used a maximum likelihood fitting approach minimizing the error between the model and the raw proportion correct data. For comparison, we first show the performance of the threshold fits across the full psychometric functions in @fig-twostage1 and @fig-mink1. Consistent with the threshold and slope performance shown in Figure 3a-d of the main manuscript, the two-stage model overestimates summation at threshold, and the Minkowski model overestimates the psychometric slopes. However the model predictions for psychometric functions are reasonably accurate.
+
+::: {.content-visible unless-format="docx"}
+![Model predictions for the two stage model, fitted to thresholds only. The threshold and slope predictions are reproduced from Figure 3a,c. The psychometric function predictions were calculated using the same parameters. Parameter values and figures of merit are provided in Table S1.](Figures/FigureS1.pdf){#fig-twostage1}
+:::
+
+::: {.content-visible unless-format="docx"}
+![Model predictions for the Minkowski model, fitted to thresholds only. The threshold and slope predictions are reproduced from Figure 3b,d. The psychometric function predictions were calculated using the same parameters. Parameter values and figures of merit are provided in Table S1.](Figures/FigureS2.pdf){#fig-mink1}
+:::
+
+Next, we fitted both models again by minimizing the log likelihood of the proportion correct data, instead of the RMS error across threshold. The results are shown in @fig-twostage2 and @fig-mink2. Parameters for all models are summarized in @tbl-parameters. It is clear that the general character of the fits is consistent, and the key parameter values ($\omega$ and $\gamma$) are similar for the different fitting approaches. However the log likelihood fits tend to underestimate the amount of facilitation (the depth of the dip) relative to the threshold fits. Note also that the RMS errors are slightly higher for the thresholds, and slightly lower for the slopes when fitting to the full psychometric functions, relative to the threshold fits. The numerical log likelihood scores are also lower when these are the target of our optimization routine.
+
+::: {.content-visible unless-format="docx"}
+![Maximum likelihood fits for the two stage model, fitted to the proportion correct data for individual participants, using physical stimulus intensities. Parameter values and figures of merit are provided in Table S1.](Figures/FigureS3.pdf){#fig-twostage2}
+:::
+
+::: {.content-visible unless-format="docx"}
+![Maximum likelihood fits for the Minkowski model, fitted to the proportion correct data for individual participants, using physical stimulus intensities. Parameter values and figures of merit are provided in Table S1.](Figures/FigureS4.pdf){#fig-mink2}
+:::
+
+Finally, we repeated the maximum likelihood fitting, this time taking into account the sensitivity of individual participants at detection threshold. To do this, we normalized all stimulus intensities to the detection threshold estimates in the pentadactyl condition for each participant. Visualization of the individual psychometric functions and slopes becomes somewhat messier under this scheme (because both the stimulus intensities and the baseline intensities are different for each participant), but the overall model performance at threshold remains similar (see @fig-normalized), and the key parameters are again consistent (see @tbl-parameters). Log likelihood scores are very similar to the maximum likelihood fits using the physical stimulus intensities.
+
+::: {.content-visible unless-format="docx"}
+![Thresholds derived from maximum likelihood fits for both models, fitted to the proportion correct data for individual participants, using stimulus intensities normalized to performance at threshold in the pentedactyl condition. Points are thresholds for individual participants, and curves show the fits of the models. Parameter values and figures of merit are provided in Table S1.](Figures/FigureS5.pdf){#fig-normalized}
+:::
+
+We conclude from these additional fits that our main results do not depend on having performed fitting at threshold (as is standard in the literature), and generalize to fits involving the full psychometric function.
+
+```{r}
+#| label: tbl-parameters
+#| output: true
+#| tbl-cap: 'Summary of fitted model parameters. RMS errors are calculated for thresholds (T) and slopes (S) using dB values. We did not calculate these values for the normalized fits, as the different number of data points makes comparison with the other fits problematic. RMSE: root mean squared error; LL: log likelihood.'
+#| echo: false
+
+tabledata <- data.frame(tabledata)
+
+tabledata[,1] <- c('Linear summation', 'Threshold fit', 'Maximum likelihood', 'Normalized MLE', 'Minkowski summation', 'Threshold fit', 'Maximum likelihood', 'Normalized MLE')
+tabledata[c(1,5),2:12] <- ' '
+tabledata[2:4,9] <- '(1.0)'
+tabledata[c(4,8),10:11] <- '-'
+tabledata[7,7] <- '<0.001'
+
+colnames(tabledata) <- c('Model','$p$','$q$','$m$','$S$','$Z$',"$\\omega$",'$k$',"$\\gamma$",'$RMSE_T$', '$RMSE_S$', 'LL')
+#
+kableExtra::kbl(tabledata, align='lccccccccccc',booktabs=TRUE,linesep='',escape = FALSE) %>% kable_styling(font_size = 7) %>% row_spec(c(1,5), bold = TRUE) %>% row_spec(4, hline_after = TRUE)
+
+```
