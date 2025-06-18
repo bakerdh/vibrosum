@@ -449,7 +449,7 @@ for (cond in 1:4){
   lines(pedlist,allpreddB[cond,],col=collist[cond],lwd=2)
   points(pedcontrasts,meanthresh[cond,],pch=16,col=collist[cond],cex=1.5)
 }
-legend(-12,30,c('Pentedactyl','Dekadactyl','Half-dekadactyl','Dichodactyl'),pch=16,col=collist,box.lwd=2,cex=1.5)
+legend(-12,30,c('Pentadactyl','Dekadactyl','Half-dekadactyl','Dichodactyl'),pch=16,col=collist,box.lwd=2,cex=1.5)
 text(21,-10.5,paste0('RMSE = ',tabledata[tableroworder[modelno],10],'dB'),cex=2)
 lines(c(-12,30),c(-12,30),lty=2)
 
@@ -562,7 +562,7 @@ for (cond in 1:4){
 
   lines(pedlist,allpreddB[cond,],col=collist[cond],lwd=2)
 }
-if (modelno==1){legend(-18,24,c('Pentedactyl','Dekadactyl','Half-dekadactyl','Dichodactyl'),pch=16,col=collist,box.lwd=2,cex=1.5)}
+if (modelno==1){legend(-18,24,c('Pentadactyl','Dekadactyl','Half-dekadactyl','Dichodactyl'),pch=16,col=collist,box.lwd=2,cex=1.5)}
 # text(18,-10.5,paste0('RMSE = ',round(RMSfortable[modelno],digits=2),'dB'),cex=2)
 lines(c(-18,24),c(-18,24),lty=2)
 
@@ -635,7 +635,7 @@ Next, we fitted both models again by minimizing the log likelihood of the propor
 Finally, we repeated the maximum likelihood fitting, this time taking into account the sensitivity of individual participants at detection threshold. To do this, we normalized all stimulus intensities to the detection threshold estimates in the pentadactyl condition for each participant. Visualization of the individual psychometric functions and slopes becomes somewhat messier under this scheme (because both the stimulus intensities and the baseline intensities are different for each participant), but the overall model performance at threshold remains similar (see @fig-normalized), and the key parameters are again consistent (see @tbl-parameters). Log likelihood scores are very similar to the maximum likelihood fits using the physical stimulus intensities.
 
 ::: {.content-visible unless-format="docx"}
-![Thresholds derived from maximum likelihood fits for both models, fitted to the proportion correct data for individual participants, using stimulus intensities normalized to performance at threshold in the pentedactyl condition. Points are thresholds for individual participants, and curves show the fits of the models. Parameter values and figures of merit are provided in Table S1.](Figures/FigureS5.pdf){#fig-normalized}
+![Thresholds derived from maximum likelihood fits for both models, fitted to the proportion correct data for individual participants, using stimulus intensities normalized to performance at threshold in the pentadactyl condition. Points are thresholds for individual participants, and curves show the fits of the models. Parameter values and figures of merit are provided in Table S1.](Figures/FigureS5.pdf){#fig-normalized}
 :::
 
 We conclude from these additional fits that our main results do not depend on having performed fitting at threshold (as is standard in the literature), and generalize to fits involving the full psychometric function.
