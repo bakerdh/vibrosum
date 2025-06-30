@@ -1,5 +1,4 @@
-FROM rocker/verse:4.3.3
-
+FROM --platform=linux/amd64 rocker/verse:4.3.3
 RUN apt-get update -qq
 RUN apt-get -y install cmake
 RUN apt-get -y --no-install-recommends install libglu1-mesa-dev
